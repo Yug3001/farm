@@ -1,0 +1,455 @@
+/* ============================================
+   RESPONSIVE DESIGN - MOBILE & TABLET SUPPORT
+   ============================================ */
+
+/* Tablet Landscape (1024px and below) */
+@media screen and (max-width: 1024px) {
+    .navbar {
+        padding: 16px 30px;
+    }
+
+    .main {
+        padding: 100px 30px 30px 30px;
+        gap: 50px;
+    }
+
+    .left-section,
+    .right-section {
+        width: 45%;
+    }
+
+    .advisor-card {
+        max-width: 700px;
+    }
+}
+
+/* Tablet Portrait (768px and below) */
+@media screen and (max-width: 768px) {
+    .navbar {
+        padding: 12px 20px;
+        flex-wrap: wrap;
+    }
+
+    .logo {
+        font-size: 18px;
+    }
+
+    .logo-icon {
+        font-size: 1.5rem;
+    }
+
+    .menu {
+        gap: 5px;
+    }
+
+    .menu button,
+    .menu a {
+        font-size: 0.8rem;
+        padding: 6px 12px;
+    }
+
+    .main {
+        flex-direction: column;
+        padding: 80px 20px 30px 20px;
+        gap: 30px;
+    }
+
+    .left-section,
+    .right-section {
+        width: 100%;
+    }
+
+    .capture-card {
+        max-width: 100%;
+        min-height: 400px;
+        padding: 30px;
+    }
+
+    .advisor-card {
+        max-width: 100%;
+    }
+
+    .advisor-header {
+        padding: 20px;
+    }
+
+    .bot-icon {
+        width: 50px;
+        height: 50px;
+        font-size: 24px;
+    }
+
+    .advisor-body {
+        padding: 30px 15px;
+        max-height: 400px;
+    }
+
+    .advisor-input {
+        padding: 15px;
+    }
+
+    .advisor-input input {
+        padding: 14px 18px;
+        font-size: 14px;
+    }
+
+    .advisor-input button {
+        width: 50px;
+        height: 50px;
+        font-size: 20px;
+    }
+
+    .chat-bubble {
+        max-width: 85%;
+        font-size: 0.9rem;
+    }
+
+    .footer {
+        flex-direction: column;
+        gap: 20px;
+        padding: 30px 20px;
+    }
+
+    .stats {
+        flex-wrap: wrap;
+        gap: 30px;
+        justify-content: center;
+    }
+
+    .title-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+
+    .modal {
+        width: 95%;
+        padding: 25px;
+    }
+}
+
+/* Mobile (480px and below) */
+@media screen and (max-width: 480px) {
+    .navbar {
+        padding: 10px 15px;
+    }
+
+    .logo {
+        font-size: 16px;
+    }
+
+    .logo-icon {
+        font-size: 1.3rem;
+    }
+
+    .menu {
+        width: 100%;
+        justify-content: center;
+        margin-top: 10px;
+        flex-wrap: wrap;
+    }
+
+    .menu button,
+    .menu a {
+        font-size: 0.75rem;
+        padding: 5px 10px;
+    }
+
+    .theme {
+        font-size: 1rem;
+    }
+
+    .logout-btn {
+        padding: 6px 15px;
+        font-size: 0.85rem;
+    }
+
+    .main {
+        padding: 70px 15px 20px 15px;
+        gap: 20px;
+    }
+
+    .capture-card {
+        min-height: 350px;
+        padding: 25px;
+        border-radius: 24px;
+    }
+
+    .icon-box {
+        width: 60px;
+        height: 60px;
+        font-size: 24px;
+    }
+
+    .scan-btn {
+        padding: 14px;
+        font-size: 16px;
+        border-radius: 14px;
+    }
+
+    .advisor-card {
+        border-radius: 20px;
+    }
+
+    .advisor-header {
+        padding: 15px;
+        gap: 15px;
+    }
+
+    .bot-icon {
+        width: 45px;
+        height: 45px;
+        font-size: 20px;
+    }
+
+    .advisor-header h2 {
+        font-size: 1.2rem;
+    }
+
+    .status {
+        font-size: 11px;
+    }
+
+    .advisor-body {
+        padding: 20px 10px;
+        max-height: 350px;
+        min-height: 250px;
+    }
+
+    .ask-box h3 {
+        font-size: 22px;
+    }
+
+    .ask-box p {
+        font-size: 0.85rem;
+    }
+
+    .advisor-input {
+        padding: 12px;
+        gap: 10px;
+    }
+
+    .advisor-input input {
+        padding: 12px 16px;
+        font-size: 13px;
+        border-radius: 20px;
+    }
+
+    .advisor-input button {
+        width: 45px;
+        height: 45px;
+        font-size: 18px;
+        border-radius: 14px;
+    }
+
+    .chat-bubble {
+        max-width: 90%;
+        font-size: 0.85rem;
+        padding: 12px 16px;
+    }
+
+    .footer {
+        padding: 25px 15px;
+    }
+
+    .stats {
+        gap: 20px;
+    }
+
+    .stats h1 {
+        font-size: 1.2rem;
+    }
+
+    .stats p {
+        font-size: 0.75rem;
+    }
+
+    .reminder-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+
+    .reminder-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+
+    .modal {
+        width: 95%;
+        padding: 20px;
+        border-radius: 18px;
+    }
+
+    .modal h2 {
+        font-size: 1.3rem;
+    }
+
+    .modal input,
+    .modal select,
+    .modal textarea {
+        padding: 10px;
+        font-size: 14px;
+    }
+
+    .btn-primary,
+    .btn-secondary {
+        padding: 8px 16px;
+        font-size: 14px;
+    }
+}
+
+/* Extra Small Mobile (360px and below) */
+@media screen and (max-width: 360px) {
+    .navbar {
+        padding: 8px 10px;
+    }
+
+    .logo {
+        font-size: 14px;
+    }
+
+    .main {
+        padding: 60px 10px 15px 10px;
+    }
+
+    .capture-card {
+        padding: 20px;
+        min-height: 300px;
+    }
+
+    .advisor-body {
+        max-height: 300px;
+        min-height: 200px;
+    }
+
+    .chat-bubble {
+        font-size: 0.8rem;
+        padding: 10px 14px;
+    }
+}
+
+/* Landscape Mode for Mobile */
+@media screen and (max-height: 500px) and (orientation: landscape) {
+    .navbar {
+        padding: 8px 15px;
+    }
+
+    .main {
+        padding: 60px 20px 20px 20px;
+    }
+
+    .advisor-body {
+        max-height: 250px;
+    }
+
+    .capture-card {
+        min-height: 250px;
+    }
+}
+
+/* Touch Device Optimizations */
+@media (hover: none) and (pointer: coarse) {
+
+    /* Increase touch targets */
+    .menu button,
+    .menu a {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    .advisor-input button {
+        min-width: 50px;
+        min-height: 50px;
+    }
+
+    .action-icon {
+        min-width: 44px;
+        min-height: 44px;
+    }
+
+    /* Remove hover effects on touch devices */
+    .menu button:hover,
+    .menu a:hover,
+    .theme:hover,
+    .scan-btn:hover,
+    .advisor-input button:hover,
+    .new-task:hover,
+    .complete-icon:hover,
+    .delete-icon:hover,
+    .logout-btn:hover {
+        transform: none;
+        background: inherit;
+    }
+
+    /* Add active states for touch feedback */
+    .menu button:active,
+    .menu a:active {
+        opacity: 0.7;
+    }
+
+    .scan-btn:active,
+    .advisor-input button:active,
+    .btn-primary:active {
+        transform: scale(0.95);
+    }
+}
+
+/* High DPI Displays */
+@media (-webkit-min-device-pixel-ratio: 2),
+(min-resolution: 192dpi) {
+
+    /* Ensure crisp rendering on retina displays */
+    body {
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+}
+
+/* Print Styles */
+@media print {
+
+    .navbar,
+    .footer,
+    .advisor-input,
+    .theme,
+    .logout-btn,
+    .new-task {
+        display: none;
+    }
+
+    .main {
+        padding: 20px;
+    }
+
+    .advisor-card,
+    .capture-card {
+        box-shadow: none;
+        border: 1px solid #ddd;
+    }
+}
+
+/* Reduced Motion for Accessibility */
+@media (prefers-reduced-motion: reduce) {
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+
+    .logo-icon {
+        animation: none;
+    }
+}
+
+/* Dark Mode Preference - only apply system dark mode if the user
+   has explicitly toggled dark mode via the app's theme switch */
+@media (prefers-color-scheme: dark) {
+    body.dark-mode {
+        background: #121212;
+        color: #e0e0e0;
+    }
+}

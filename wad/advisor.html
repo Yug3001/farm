@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>FarmWise – Advisor</title>
+  <link rel="stylesheet" href="advisor.css">
+</head>
+<body>
+
+<!-- NAVBAR -->
+<header class="navbar">
+  <div class="logo">FarmWise</div>
+
+  <nav class="menu">
+    <button onclick="goToSoil()">SOIL</button>
+    <button onclick="goToCrop()">CROP</button>
+    <button onclick="goToPlanner()">PLANNER</button>
+    <button class="active">ADVISOR</button>
+    <button onclick="goToReminders()">REMINDERS</button>
+  </nav>
+
+  <div class="theme">🌙</div>
+</header>
+
+<!-- ADVISOR CARD -->
+<section class="advisor-card">
+  <div class="advisor-header">
+    <div class="bot-icon">🤖</div>
+    <div>
+      <h2>Agricultural Advisor</h2>
+      <span class="status">● ALWAYS READY</span>
+    </div>
+  </div>
+
+  <div class="advisor-body">
+    <div class="ask-box">
+      💬
+      <h3>Ask Anything</h3>
+      <p>"What are the best organic pest controls?"</p>
+      <p>"Tell me about PM-KISAN benefits."</p>
+    </div>
+  </div>
+
+  <!-- INPUT -->
+  <div class="advisor-input">
+    <input type="text" id="question" placeholder="Describe your farming challenge..." />
+    <button onclick="sendQuestion()">✈</button>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="footer">
+  <h2>FarmWise Intelligence</h2>
+
+  <div class="stats">
+    <div>
+      <h1>0</h1>
+      <p>REPORTS</p>
+    </div>
+    <div>
+      <h1>0</h1>
+      <p>PENDING TASKS</p>
+    </div>
+  </div>
+</footer>
+
+<script src="advisor.js"></script>
+</body>
+</html>

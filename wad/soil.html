@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>FarmWise – Soil</title>
+  <link rel="stylesheet" href="soil.css">
+</head>
+<body>
+
+<header class="navbar">
+  
+  <div class="logo">FarmWise</div>
+
+  <nav class="menu">
+    <button class="active">SOIL</button>
+    <button onclick="goToCrop()">CROP</button>
+    <button onclick="goToPlanner()">PLANNER</button>
+    <button onclick="goToAdvisor()">ADVISOR</button>
+    <button onclick="goToReminders()">REMINDERS</button>
+  </nav>
+
+  <div class="theme">🌙</div>
+</header>
+
+<main class="main">
+  <section class="left">
+
+    <div class="capture-card">
+      <div class="icon-box" onclick="openCamera()">📷</div>
+      <h2>Capture Soil</h2>
+      <p>Place your soil sample in natural light<br>for best results.</p>
+      <input type="file" id="fileInput" accept="image/*">
+    </div>
+
+    <button class="scan-btn" onclick="startScan()">🔍 Initiate Scan</button>
+  </section>
+
+  <section class="right">
+    <div class="analysis-icon"></div>
+    <h2>Ready for Analysis</h2>
+  </section>
+</main>
+
+<footer class="footer">
+  <h2>FarmWise Intelligence</h2>
+  <div class="stats">
+    <div><h1>0</h1><p>REPORTS</p></div>
+    <div><h1>0</h1><p>PENDING TASKS</p></div>
+  </div>
+</footer>
+
+<script src="soil.js"></script>
+</body>
+</html>

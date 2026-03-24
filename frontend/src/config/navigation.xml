@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<navigation>
+    <app-name>FarmWise</app-name>
+    <menu-items>
+        <item>
+            <id>soil</id>
+            <label>SOIL</label>
+            <route>/dashboard/soil</route>
+            <icon>🌍</icon>
+            <description>Soil Analysis</description>
+        </item>
+        <item>
+            <id>crop</id>
+            <label>CROP</label>
+            <route>/dashboard/crop</route>
+            <icon>🌿</icon>
+            <description>Crop Analysis</description>
+        </item>
+        <item>
+            <id>planner</id>
+            <label>PLANNER</label>
+            <route>/dashboard/planner</route>
+            <icon>📅</icon>
+            <description>Smart Planner</description>
+        </item>
+        <item>
+            <id>advisor</id>
+            <label>ADVISOR</label>
+            <route>/dashboard/advisor</route>
+            <icon>🤖</icon>
+            <description>Advisor Bot</description>
+        </item>
+        <item>
+            <id>reminders</id>
+            <label>REMINDERS</label>
+            <route>/dashboard/reminders</route>
+            <icon>🔔</icon>
+            <description>Smart Reminders</description>
+        </item>
+    </menu-items>
+</navigation>

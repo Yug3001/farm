@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>FarmWise – Crop</title>
+  <link rel="stylesheet" href="crop.css">
+</head>
+<body>
+
+<header class="navbar">
+  <div class="logo"> FarmWise</div>
+
+  <nav class="menu">
+    <button onclick="goToSoil()">SOIL</button>
+    <button class="active">CROP</button>
+    <button onclick="goToPlanner()">PLANNER</button>
+    <button onclick="goToAdvisor()">ADVISOR</button>
+    <button onclick="goToReminders()">REMINDERS</button>
+  </nav>
+
+  <div class="theme">🌙</div>
+</header>
+
+<main class="main">
+  <section class="left">
+
+    <div class="capture-card">
+      <div class="icon-box" onclick="openCamera()">🌿</div>
+      <h2>Capture Crop</h2>
+      <p>Take a clear photo of the crop leaf<br>for disease detection.</p>
+      <input type="file" id="fileInput" accept="image/*">
+    </div>
+
+    <button class="scan-btn" onclick="startScan()">🔍 Analyze Crop</button>
+  </section>
+
+  <section class="right">
+    <div class="analysis-icon"></div>
+    <h2>Ready for Crop Analysis</h2>
+  </section>
+</main>
+
+<footer class="footer">
+  <h2>FarmWise Intelligence</h2>
+  <div class="stats">
+    <div><h1>0</h1><p>CROP REPORTS</p></div>
+    <div><h1>0</h1><p>ALERTS</p></div>
+  </div>
+</footer>
+
+<script src="crop.js"></script>
+</body>
+</html>

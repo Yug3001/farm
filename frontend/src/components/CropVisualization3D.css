@@ -1,0 +1,37 @@
+.crop-visualization-3d {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.crop-visualization-3d .3d-container {
+  width: 100%;
+  height: 100%;
+}
+
+.crop-info {
+  position: absolute;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  color: #2e7d32;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 20px 40px;
+  border-radius: 15px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  z-index: 10;
+}
+
+.crop-info h2 {
+  font-size: 1.8rem;
+  margin: 0;
+  font-weight: bold;
+}
+
+.crop-info p {
+  font-size: 1rem;
+  margin: 5px 0 0 0;
+  opacity: 0.8;
+}

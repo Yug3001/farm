@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>FarmWise – Planner</title>
+  <link rel="stylesheet" href="planner.css">
+</head>
+<body>
+
+<header class="navbar">
+  <div class="logo">FarmWise</div>
+
+  <nav class="menu">
+    <button onclick="goToSoil()">SOIL</button>
+    <button onclick="goToCrop()">CROP</button>
+    <button class="active">PLANNER</button>
+    <button onclick="goToAdvisor()">ADVISOR</button>
+    <button onclick="goToReminders()">REMINDERS</button>
+  </nav>
+
+  <div class="theme">🌙</div>
+</header>
+
+<!-- PLANNER BANNER -->
+<section class="planner-banner">
+  <div class="banner-text">
+    <h1>Optimal Planting</h1>
+    <p>Data-driven crop strategies for your region.</p>
+  </div>
+
+  <div class="banner-controls">
+    <select id="seasonSelect">
+      <option>Spring Season</option>
+      <option>Summer Season</option>
+      <option>Autumn Season</option>
+      <option>Winter Season</option>
+    </select>
+
+    <button class="refresh-btn" onclick="refreshPlan()">🔄</button>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="footer">
+  <h2>FarmWise Intelligence</h2>
+
+  <div class="stats">
+    <div>
+      <h1>0</h1>
+      <p>REPORTS</p>
+    </div>
+    <div>
+      <h1>0</h1>
+      <p>PENDING TASKS</p>
+    </div>
+  </div>
+</footer>
+
+<script src="planner.js"></script>
+</body>
+</html>

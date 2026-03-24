@@ -1,0 +1,133 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Segoe UI", sans-serif;
+}
+
+body {
+  background: #f9faf9;
+  color: #1f2937;
+}
+
+/* NAVBAR */
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 40px;
+  background: #fff;
+}
+
+.logo {
+  font-size: 22px;
+  font-weight: bold;
+  color: #1f5135;
+}
+
+.menu button {
+  background: none;
+  border: none;
+  margin: 0 10px;
+  font-weight: 600;
+  color: #8a94a6;
+  cursor: pointer;
+}
+
+.menu .active {
+  background: #1f5135;
+  color: #fff;
+  padding: 8px 18px;
+  border-radius: 20px;
+}
+
+.badge {
+  background: orange;
+  color: white;
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 10px;
+}
+
+/* MAIN */
+.main {
+  display: flex;
+  padding: 50px;
+  gap: 80px;
+}
+
+.left { width: 40%; }
+
+/* CAPTURE CARD */
+.capture-card {
+  width: 380px;
+  height: 560px;
+  border: 3px dashed #d7e0ea;
+  border-radius: 36px;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 40px;
+}
+
+.icon-box {
+  width: 76px;
+  height: 76px;
+  border-radius: 22px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 30px;
+  box-shadow: 0 12px 25px rgba(0,0,0,0.08);
+  margin-bottom: 24px;
+  cursor: pointer;
+}
+
+.scan-btn {
+  margin-top: 30px;
+  width: 380px;
+  padding: 18px;
+  background: #97aa9d;
+  border: none;
+  border-radius: 18px;
+  font-size: 18px;
+  color: white;
+  cursor: pointer;
+}
+
+.right {
+  width: 40%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.analysis-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+
+.footer {
+  display: flex;
+  justify-content: space-between;
+  padding: 40px 50px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.stats {
+  display: flex;
+  gap: 50px;
+  text-align: center;
+}
+
+.stats h1 {
+  color: #1f5135;
+}
+
+input[type="file"] {
+  display: none;
+}

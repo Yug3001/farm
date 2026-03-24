@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>FarmWise – Reminders</title>
+  <link rel="stylesheet" href="reminders.css">
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="navbar">
+  <div class="left-nav">
+    <h2 class="logo-text">FarmWise</h2>
+  </div>
+
+  <nav class="menu">
+    <button onclick="goToSoil()">SOIL</button>
+    <button onclick="goToCrop()">CROP</button>
+    <button onclick="goToPlanner()">PLANNER</button>
+    <button onclick="goToAdvisor()">ADVISOR</button>
+    <button class="active">REMINDERS</button>
+  </nav>
+
+  <div class="theme">🌙</div>
+</header>
+
+<!-- MAIN -->
+<main class="main">
+  <div class="title-row">
+    <div>
+      <h1>Daily Schedule</h1>
+      <p class="subtitle">Never miss a critical task for your crops.</p>
+    </div>
+
+    <button class="new-task">+ New Task</button>
+  </div>
+
+  <div class="empty-state">
+    <div class="bell">🔔</div>
+    <h3>No active reminders</h3>
+    <p>Go to Planner to set planting schedules!</p>
+  </div>
+</main>
+
+<!-- FOOTER -->
+<footer class="footer">
+  <h2>FarmWise Intelligence</h2>
+
+  <div class="stats">
+    <div>
+      <h1>0</h1>
+      <p>REPORTS</p>
+    </div>
+    <div>
+      <h1>0</h1>
+      <p>PENDING TASKS</p>
+    </div>
+  </div>
+</footer>
+
+<script src="reminders.js"></script>
+</body>
+</html>
