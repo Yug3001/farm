@@ -16,31 +16,66 @@ import './responsive.css';
 
 // Dashboard Layout Component
 const DashboardLayout = ({ onLogout, isDarkMode, toggleTheme }) => {
+  // Apply theme-correct background — clear any inline style so CSS classes work
+  React.useEffect(() => {
+    // Remove any inline background so CSS .light-mode / .dark-mode classes take full control
+    document.body.style.background = '';
+    document.body.style.minHeight = '';
+    return () => {
+      document.body.style.background = '';
+    };
+  }, []);
+
+  const navBg = isDarkMode
+    ? 'rgba(10, 22, 40, 0.92)'
+    : 'rgba(255, 255, 255, 0.92)';
+  const navBorder = isDarkMode
+    ? '1px solid rgba(34, 197, 94, 0.15)'
+    : '1px solid rgba(34, 197, 94, 0.2)';
+  const navTextColor = isDarkMode ? '#22c55e' : '#15803d';
+  const themeBtn = isDarkMode
+    ? { bg: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)' }
+    : { bg: 'rgba(0,0,0,0.06)', border: '1px solid rgba(0,0,0,0.1)' };
+
   return (
     <>
-      <header className="navbar">
-        <div className="logo">
-          <span className="logo-icon">🌱</span>
-          <span className="logo-text">FarmWise</span>
+      <header style={{
+        position: 'fixed', top: 0, left: 0, right: 0, zIndex: 1000,
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        padding: '12px 32px',
+        background: navBg,
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        borderBottom: navBorder,
+        boxShadow: isDarkMode ? '0 4px 24px rgba(0,0,0,0.4)' : '0 2px 16px rgba(0,0,0,0.08)',
+        transition: 'all 0.3s'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: '1.8rem', animation: 'leafGrow 3s ease-in-out infinite' }}>🌱</span>
+          <span style={{ color: navTextColor, fontWeight: 800, fontSize: '1.3rem', letterSpacing: '-0.5px', transition: 'color 0.3s' }}>FarmWise</span>
         </div>
 
-        <XMLNavigation />
+        <XMLNavigation isDarkMode={isDarkMode} />
 
-        <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-          {/* Overdue task notification bell */}
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
           <OverdueBell />
-
-          <div className="theme" onClick={toggleTheme} title="Toggle Theme">
+          <button onClick={toggleTheme} title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            style={{ background: themeBtn.bg, border: themeBtn.border, borderRadius: 10, width: 38, height: 38, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', transition: 'all 0.2s' }}>
             {isDarkMode ? '☀️' : '🌙'}
-          </div>
-          <button onClick={onLogout} className="logout-btn">
+          </button>
+          <button onClick={onLogout}
+            style={{ padding: '8px 20px', background: 'rgba(239,68,68,0.12)', color: isDarkMode ? '#fca5a5' : '#dc2626', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 10, cursor: 'pointer', fontWeight: 600, fontSize: '0.88rem', transition: 'all 0.2s' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.25)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.12)'; }}>
             Logout
           </button>
         </div>
       </header>
 
-      {/* Main Content Area */}
-      <Outlet />
+      {/* Main Content Area — padded below fixed navbar */}
+      <div style={{ paddingTop: 68 }}>
+        <Outlet />
+      </div>
     </>
   );
 };
@@ -152,11 +187,11 @@ function App() {
               )
             }>
               <Route index element={<Navigate to="advisor" replace />} />
-              <Route path="advisor" element={<AdvisorBot3D />} />
-              <Route path="crop" element={<CropVisualization3D />} />
-              <Route path="soil" element={<SoilAnalysis3D />} />
-              <Route path="planner" element={<Planner />} />
-              <Route path="reminders" element={<Reminders />} />
+              <Route path="advisor"   element={<AdvisorBot3D      isDarkMode={isDarkMode} />} />
+              <Route path="crop"      element={<CropVisualization3D isDarkMode={isDarkMode} />} />
+              <Route path="soil"      element={<SoilAnalysis3D    isDarkMode={isDarkMode} />} />
+              <Route path="planner"   element={<Planner           isDarkMode={isDarkMode} />} />
+              <Route path="reminders" element={<Reminders         isDarkMode={isDarkMode} />} />
             </Route>
 
             {/* Catch-all */}

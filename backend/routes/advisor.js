@@ -1,8 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const ChatHistory = require('../models/ChatHistory');
+const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
 const QueryClassifier = require('../utils/queryClassifier');
+
 
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
@@ -206,8 +208,9 @@ router.post('/ask', authMiddleware, async (req, res) => {
     const lowerQuestion = question.toLowerCase();
     const kbResponses = getKnowledgeBase();
 
-    // ROUTE 1: Simple queries with high confidence → Knowledge Base (saves API calls)
-    if (classification.type === 'simple' && classification.confidence >= 0.7) {
+    // ROUTE 1: Simple queries in ENGLISH with high confidence → Knowledge Base (saves API calls)
+    // For non-English languages, always use Gemini so response is in the selected language
+    if (language === 'en' && classification.type === 'simple' && classification.confidence >= 0.7) {
       let bestMatch = null;
       let maxLen = 0;
       for (const key in kbResponses) {
@@ -217,7 +220,12 @@ router.post('/ask', authMiddleware, async (req, res) => {
         }
       }
       if (bestMatch) {
-        console.log('✅ Using Knowledge Base - API call saved!');
+        console.log('✅ Using Knowledge Base (English) - API call saved!');
+        // Track usage in MongoDB (fire-and-forget — don't block response)
+        User.findById(req.user._id)
+          .then(u => u?.trackUsage('advisor'))
+          .catch(err => console.warn('[DB] trackUsage failed:', err.message));
+
         await saveChatMessage(req.user._id, sessionId, question, bestMatch);
         return res.json({
           question,
@@ -381,6 +389,11 @@ router.post('/ask', authMiddleware, async (req, res) => {
         const result = await model.generateContent(prompt);
         const response = await result.response;
         const aiAnswer = response.text().trim();
+
+        // Track usage in MongoDB (fire-and-forget)
+        User.findById(req.user._id)
+          .then(u => u?.trackUsage('advisor'))
+          .catch(err => console.warn('[DB] trackUsage failed:', err.message));
 
         // Save to chat history
         await saveChatMessage(req.user._id, sessionId, question, aiAnswer);

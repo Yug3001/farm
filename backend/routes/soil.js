@@ -1,10 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const SoilAnalysis = require('../models/SoilAnalysis');
+const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
-
-
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { generateWithRetry, parseGeminiJson, validateStructure } = require('../utils/aiHelper');
 
 // Analyze soil sample
 router.post('/analyze', authMiddleware, async (req, res) => {
@@ -27,7 +26,6 @@ router.post('/analyze', authMiddleware, async (req, res) => {
     };
 
     const responseLang = languageNames[language] || 'English';
-
     let analysisData = {};
 
     // Use Gemini AI if Key is available and valid image data provided
@@ -35,66 +33,70 @@ router.post('/analyze', authMiddleware, async (req, res) => {
       console.log('✅ Using AI Analysis (Gemini)');
 
       try {
-        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
         const base64Data = imageData.split(',')[1];
+        const mimeType = imageData.split(';')[0].split(':')[1];
 
         const imagePart = {
-          inlineData: {
-            data: base64Data,
-            mimeType: imageData.split(';')[0].split(':')[1]
-          }
+          inlineData: { data: base64Data, mimeType }
         };
 
-        const prompt = `Analyze this soil image for agricultural purposes. 
-        
-        🌐 LANGUAGE INSTRUCTION (CRITICAL):
-        - You MUST provide ALL text in ${responseLang}
-        - Field names in JSON should remain in English, but all VALUES must be in ${responseLang}
-        - Use simple language that farmers can understand
-        - If using Hindi/Gujarati/Marathi, use native script (Devanagari/Gujarati)
-        
-        Identify the soil type, texture, color, moisture level, organic matter content, and estimate levels of pH, Nitrogen, Phosphorus, and Potassium.
-        Provide specific recommendations for crops and soil improvements IN ${responseLang}.
-        
-        Return STRICT JSON format with no markdown or backticks:
-        {
-          "soilType": "Soil Type Name in ${responseLang}",
-          "texture": "texture description in ${responseLang}",
-          "color": "color description in ${responseLang}",
-          "moisture": "moisture level in ${responseLang}",
-          "organicMatter": "organic matter level in ${responseLang}",
-          "ph": { "value": "pH value", "category": "acidic/neutral/alkaline in ${responseLang}" },
-          "nutrients": {
-            "nitrogen": "level description in ${responseLang}",
-            "phosphorus": "level description in ${responseLang}",
-            "potassium": "level description in ${responseLang}"
-          },
-          "recommendations": ["recommendation 1 in ${responseLang}", "recommendation 2 in ${responseLang}"],
-          "suitableCrops": ["crop 1 in ${responseLang}", "crop 2 in ${responseLang}"],
-          "improvements": ["improvement 1 in ${responseLang}", "improvement 2 in ${responseLang}"]
-        }
-        
-        If the image is NOT soil, return: { "error": "Invalid image: Not soil in ${responseLang}" }`;
+        const prompt = `You are an expert soil scientist AI specializing in Indian agriculture.
+Carefully analyze this soil image and provide a precise agricultural assessment.
 
-        const result = await model.generateContent([prompt, imagePart]);
-        const response = await result.response;
-        const text = response.text().replace(/```json/g, '').replace(/```/g, '').trim();
+🌐 LANGUAGE: Respond with ALL values in ${responseLang} ONLY.
+JSON keys must remain in English; only VALUES are translated.
 
-        const aiAnalysis = JSON.parse(text);
+ANALYSIS INSTRUCTIONS:
+1. Examine soil color carefully (dark = organic, red = iron, pale = low fertility)
+2. Estimate texture from visual cues (clay = smooth/sticky, sandy = grainy, loam = balanced)
+3. Assess moisture from color saturation and surface appearance
+4. Estimate organic matter from darkness/richness
+5. Derive pH range from color and likely soil type
+6. Recommend NPK levels based on soil type and appearance
+7. Suggest region-appropriate Indian crops for this soil type
+8. Give practical, actionable improvement steps
+
+Return STRICT valid JSON only (no markdown, no prose):
+{
+  "soilType": "specific soil type name in ${responseLang}",
+  "texture": "detailed texture description in ${responseLang}",
+  "color": "specific color description (Munsell-style if possible) in ${responseLang}",
+  "moisture": "moisture level estimate with percentage in ${responseLang}",
+  "organicMatter": "organic matter level with percentage in ${responseLang}",
+  "ph": { "value": "estimated pH value like 6.5", "category": "acidic/neutral/alkaline in ${responseLang}" },
+  "nutrients": {
+    "nitrogen": "level (Low/Medium/High) with ppm estimate in ${responseLang}",
+    "phosphorus": "level (Low/Medium/High) with ppm estimate in ${responseLang}",
+    "potassium": "level (Low/Medium/High) with ppm estimate in ${responseLang}"
+  },
+  "recommendations": ["specific recommendation 1 in ${responseLang}", "specific recommendation 2 in ${responseLang}", "specific recommendation 3 in ${responseLang}"],
+  "suitableCrops": ["crop 1 in ${responseLang}", "crop 2 in ${responseLang}", "crop 3 in ${responseLang}", "crop 4 in ${responseLang}"],
+  "improvements": ["specific improvement 1 with dosage in ${responseLang}", "specific improvement 2 in ${responseLang}", "specific improvement 3 in ${responseLang}"]
+}
+
+If the image is clearly NOT soil (e.g. a person, food, object), return:
+{ "error": "Invalid image: not a soil sample. Please upload a clear photo of soil." }`;
+
+        const rawText = await generateWithRetry(prompt, [imagePart]);
+        const aiAnalysis = parseGeminiJson(rawText);
 
         if (aiAnalysis.error) {
           return res.json({ success: false, error: aiAnalysis.error });
         }
 
-        analysisData = aiAnalysis;
-        console.log('✅ AI Analysis Successful');
+        // Validate required fields
+        const required = ['soilType', 'texture', 'ph', 'nutrients', 'recommendations', 'suitableCrops'];
+        if (!validateStructure(aiAnalysis, required)) {
+          console.warn('[Soil] AI response missing required fields, using simulation fallback');
+          analysisData = getSimulatedAnalysis(language);
+        } else {
+          analysisData = aiAnalysis;
+          console.log('✅ AI Analysis Successful');
+        }
 
       } catch (aiError) {
-        console.error("❌ AI Analysis failed:", aiError.message);
+        console.error('❌ AI Analysis failed:', aiError.message);
         console.log('⚠️ Falling back to simulation mode');
-        // Fallback to simulated if AI fails
         analysisData = getSimulatedAnalysis(language);
       }
     } else {
@@ -113,10 +115,12 @@ router.post('/analyze', authMiddleware, async (req, res) => {
 
     await soilAnalysis.save();
 
-    res.json({
-      success: true,
-      analysis: soilAnalysis
-    });
+    // Track usage in MongoDB (fire-and-forget)
+    User.findById(req.user._id)
+      .then(u => u?.trackUsage('soil'))
+      .catch(err => console.warn('[DB] trackUsage failed:', err.message));
+
+    res.json({ success: true, analysis: soilAnalysis });
 
   } catch (error) {
     console.error('Soil analysis error:', error);

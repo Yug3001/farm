@@ -2,112 +2,42 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useLanguage } from '../contexts/LanguageContext';
 import LanguageSelector from './LanguageSelector';
-import './AdvisorBot3D.css';
 
-const AdvisorBot3D = () => {
-  const { selectedLanguage, getCurrentLanguage } = useLanguage();
+const AdvisorBot3D = ({ isDarkMode = false }) => {
+  const { selectedLanguage } = useLanguage();
   const [messages, setMessages] = useState([
-    { id: 1, text: "Farmwise Here !! Tell me your problems", sender: 'bot', source: null }
+    { id: 1, text: "🌱 Namaste! I'm FarmWise AI, your personal agricultural advisor. Ask me anything about crops, soil, pests, irrigation, or government schemes!", sender: 'bot', source: null }
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [speakingMessageId, setSpeakingMessageId] = useState(null);
   const messagesEndRef = useRef(null);
-  const synthRef = useRef(null);
-
-  // Initialize speech synthesis
-  useEffect(() => {
-    if ('speechSynthesis' in window) {
-      synthRef.current = window.speechSynthesis;
-    }
-    return () => {
-      if (synthRef.current) {
-        synthRef.current.cancel();
-      }
-    };
-  }, []);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  const inputRef = useRef(null);
 
   useEffect(() => {
-    scrollToBottom();
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Reset conversation when language changes
+  // Reset messages when language changes so user gets a fresh session
   useEffect(() => {
-    // Stop any ongoing speech
-    if (synthRef.current) {
-      synthRef.current.cancel();
-      setSpeakingMessageId(null);
-    }
-    // Reset messages when language changes for fresh conversation in new language
-    setMessages([
-      { id: 1, text: "Farmwise Here !! Tell me your problems", sender: 'bot' }
-    ]);
+    const langLabels = { en: 'English', hi: 'हिंदी', gu: 'ગુજરાતી', mr: 'मराठी' };
+    setMessages([{
+      id: 1,
+      text: `🌱 Language changed to ${langLabels[selectedLanguage] || 'English'}. Ask me anything about farming!`,
+      sender: 'bot'
+    }]);
   }, [selectedLanguage]);
 
-  const speakText = (text, messageId) => {
-    if (!synthRef.current) return;
-
-    // If already speaking this message, stop it
-    if (speakingMessageId === messageId) {
-      synthRef.current.cancel();
-      setSpeakingMessageId(null);
-      return;
-    }
-
-    // Stop any ongoing speech
-    synthRef.current.cancel();
-
-    const currentLang = getCurrentLanguage();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = currentLang.speechLang;
-    utterance.rate = 0.9;
-    utterance.pitch = 1;
-    utterance.volume = 1;
-
-    utterance.onstart = () => {
-      setSpeakingMessageId(messageId);
-    };
-
-    utterance.onend = () => {
-      setSpeakingMessageId(null);
-    };
-
-    utterance.onerror = (event) => {
-      console.error('Speech error:', event.error);
-      setSpeakingMessageId(null);
-    };
-
-    // Try to find a voice for the selected language
-    const voices = synthRef.current.getVoices();
-    const preferredVoice = voices.find(voice => voice.lang === currentLang.speechLang);
-    if (preferredVoice) {
-      utterance.voice = preferredVoice;
-    }
-
-    synthRef.current.speak(utterance);
-  };
-
   const handleSubmit = async () => {
-    if (!input.trim()) return;
-
-    const userMessage = { id: Date.now(), text: input, sender: 'user' };
+    if (!input.trim() || loading) return;
+    const userText = input.trim();
+    const userMessage = { id: Date.now(), text: userText, sender: 'user' };
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     setLoading(true);
 
     try {
-      // Get token from localStorage
       const token = localStorage.getItem('token');
-
-      if (!token) {
-        throw new Error('Please login to use the advisor');
-      }
-
-      // Generate or get session ID
+      if (!token) throw new Error('auth');
       let sessionId = localStorage.getItem('advisorSessionId');
       if (!sessionId) {
         sessionId = `session_${Date.now()}`;
@@ -115,14 +45,11 @@ const AdvisorBot3D = () => {
       }
 
       const response = await axios.post('http://localhost:5000/api/advisor/ask', {
-        question: userMessage.text,
-        sessionId: sessionId,
-        language: selectedLanguage
+        question: userText,
+        sessionId,
+        language: selectedLanguage   // ← sends chosen language to backend
       }, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
       });
 
       const botMessage = {
@@ -132,158 +59,202 @@ const AdvisorBot3D = () => {
         source: response.data.source || null
       };
       setMessages(prev => [...prev, botMessage]);
-
-      // Auto-play voice output for bot response
-      setTimeout(() => {
-        speakText(response.data.answer, botMessage.id);
-      }, 500);
+      // ✅ NO auto-speak — removed intentionally
 
     } catch (error) {
-      console.error('Error fetching advice:', error);
-      let errorText = "I'm having trouble connecting to the farm database. Please try again later.";
-
-      if (error.response?.status === 401) {
-        errorText = "Please login to use the advisor. Redirecting to login page...";
-        setTimeout(() => window.location.href = '/signin', 2000);
-      } else if (error.message === 'Please login to use the advisor') {
-        errorText = "Please login to use the advisor. Redirecting to login page...";
+      let errorText = "⚠️ Connection issue. Please check your network and try again.";
+      if (error.message === 'auth' || error.response?.status === 401) {
+        errorText = "🔒 Session expired. Redirecting to login...";
         setTimeout(() => window.location.href = '/signin', 2000);
       }
-
-      const errorMessage = {
-        id: Date.now() + 1,
-        text: errorText,
-        sender: 'bot',
-        isError: true
-      };
-      setMessages(prev => [...prev, errorMessage]);
+      setMessages(prev => [...prev, { id: Date.now() + 1, text: errorText, sender: 'bot', isError: true }]);
     } finally {
       setLoading(false);
+      inputRef.current?.focus();
     }
   };
 
-  const runQuickTest = (question) => {
-    setInput(question);
-    setTimeout(() => {
-      const btn = document.getElementById('advisor-send-btn');
-      if (btn) btn.click();
-    }, 100);
+  const quickQuestions = [
+    { label: '🌾 NPK Fertilizer', q: 'What is NPK fertilizer and how to use it?' },
+    { label: '🐛 Pest Control',   q: 'How to control aphids organically?' },
+    { label: '💧 Drip Irrigation', q: 'Benefits of drip irrigation for wheat' },
+    { label: '🏛️ PM Kisan',       q: 'What is PM Kisan scheme and eligibility?' },
+    { label: '🌱 Soil Health',    q: 'How to improve soil fertility naturally?' },
+    { label: '🌧️ Kharif Crops',  q: 'Best kharif crops to grow this season' },
+  ];
+
+  const formatText = (text) => {
+    if (!text) return '';
+    return text
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      .split('\n').join('<br/>');
   };
 
+  // Theme palette
+  const bg      = isDarkMode ? 'linear-gradient(135deg,#0a1628 0%,#0d2b1a 50%,#0a1628 100%)' : '#f0fdf4';
+  const panelBg = isDarkMode ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.95)';
+  const panelBorder = isDarkMode ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(34,197,94,0.2)';
+  const inputBarBg  = isDarkMode ? 'rgba(0,0,0,0.2)' : 'rgba(240,253,244,0.9)';
+  const inputBarBorder = isDarkMode ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(34,197,94,0.15)';
+  const inputBg    = isDarkMode ? 'rgba(255,255,255,0.06)' : '#ffffff';
+  const inputColor = isDarkMode ? '#fff' : '#1f2937';
+  const inputBorderNormal = isDarkMode ? 'rgba(34,197,94,0.25)' : 'rgba(34,197,94,0.3)';
+  const botBubbleBg = isDarkMode ? 'rgba(255,255,255,0.07)' : '#f0fdf4';
+  const botBubbleBorder = isDarkMode ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(34,197,94,0.2)';
+  const botTextColor = isDarkMode ? '#e2e8f0' : '#15803d';
+  const headerCardBg = isDarkMode ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.9)';
+  const headerCardBorder = isDarkMode ? '1px solid rgba(34,197,94,0.2)' : '1px solid rgba(34,197,94,0.25)';
+  const titleColor   = isDarkMode ? '#ffffff' : '#15803d';
+  const chipBg       = isDarkMode ? 'rgba(34,197,94,0.08)' : 'rgba(34,197,94,0.1)';
+  const chipBorder   = isDarkMode ? '1px solid rgba(34,197,94,0.25)' : '1px solid rgba(34,197,94,0.3)';
+  const chipColor    = isDarkMode ? '#86efac' : '#15803d';
+  const statsBg      = isDarkMode ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.8)';
+  const statsBorder  = isDarkMode ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(34,197,94,0.15)';
+  const statsColor   = isDarkMode ? '#94a3b8' : '#4b5563';
+
   return (
-    <div className="main" style={{ flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', paddingTop: '100px' }}>
-      <section className="advisor-card">
-        <div className="advisor-header">
-          <div className="bot-icon">🤖</div>
-          <div>
-            <h2>Agricultural Advisor</h2>
-            <span className="status">● ALWAYS READY</span>
-          </div>
-          <div style={{ marginLeft: 'auto' }}>
-            <LanguageSelector />
-          </div>
-        </div>
+    <div style={{
+      minHeight: 'calc(100vh - 68px)',
+      background: bg,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: '20px', position: 'relative', overflow: 'hidden',
+      transition: 'background 0.3s'
+    }}>
+      {/* Decorative orbs (dark mode only) */}
+      {isDarkMode && <>
+        <div style={{ position:'absolute',top:'10%',left:'5%',width:300,height:300,borderRadius:'50%',background:'radial-gradient(circle,rgba(34,197,94,0.08) 0%,transparent 70%)',pointerEvents:'none' }} />
+        <div style={{ position:'absolute',bottom:'15%',right:'8%',width:250,height:250,borderRadius:'50%',background:'radial-gradient(circle,rgba(16,185,129,0.06) 0%,transparent 70%)',pointerEvents:'none' }} />
+      </>}
 
-        {/* Quick Test Buttons */}
-        <div style={{ display: 'flex', gap: '10px', padding: '10px 16px', flexWrap: 'wrap', borderBottom: '1px solid rgba(255,255,255,0.08)', background: 'rgba(0,0,0,0.15)' }}>
-          <span style={{ fontSize: '11px', color: '#aaa', alignSelf: 'center', fontWeight: 600, letterSpacing: '0.5px' }}>QUICK TEST:</span>
-          <button
-            id="test-simple-btn"
-            onClick={() => runQuickTest('What is NPK?')}
-            style={{ fontSize: '12px', padding: '5px 12px', borderRadius: '20px', border: '1px solid #22c55e', background: 'rgba(34,197,94,0.12)', color: '#22c55e', cursor: 'pointer', fontWeight: 600, transition: 'all 0.2s' }}
-            title="Routed to Knowledge Base (no API call)"
-          >
-            ✅ Simple: "What is NPK?"
-          </button>
-          <button
-            id="test-complex-btn"
-            onClick={() => runQuickTest('Analyze my soil with pH 6.5, nitrogen 20, phosphorus 15')}
-            style={{ fontSize: '12px', padding: '5px 12px', borderRadius: '20px', border: '1px solid #818cf8', background: 'rgba(129,140,248,0.12)', color: '#818cf8', cursor: 'pointer', fontWeight: 600, transition: 'all 0.2s' }}
-            title="Routed to Gemini AI"
-          >
-            🤖 Complex: "Analyze my soil..."
-          </button>
-        </div>
+      <div style={{ width:'100%', maxWidth:860, display:'flex', flexDirection:'column', gap:16 }}>
 
-        <div className="advisor-body">
-
-          {messages.map((msg) => (
-            <div key={msg.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', width: '100%', justifyContent: msg.sender === 'user' ? 'flex-end' : 'flex-start' }}>
-              <div className={`chat-bubble ${msg.sender}`} style={{ maxWidth: msg.sender === 'bot' ? '75%' : '80%' }}>
-                {msg.text}
-                {/* Source Badge */}
-                {msg.sender === 'bot' && msg.source && (
-                  <div style={{
-                    marginTop: '8px',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '5px',
-                    fontSize: '11px',
-                    fontWeight: 600,
-                    padding: '3px 10px',
-                    borderRadius: '12px',
-                    background: msg.source === 'Knowledge Base'
-                      ? 'rgba(34,197,94,0.15)'
-                      : 'rgba(129,140,248,0.15)',
-                    color: msg.source === 'Knowledge Base' ? '#22c55e' : '#818cf8',
-                    border: msg.source === 'Knowledge Base'
-                      ? '1px solid rgba(34,197,94,0.4)'
-                      : '1px solid rgba(129,140,248,0.4)',
-                    letterSpacing: '0.3px'
-                  }}>
-                    {msg.source === 'Knowledge Base' ? '✅ Knowledge Base' : '🤖 Gemini AI'}
-                  </div>
-                )}
+        {/* Header Card */}
+        <div style={{ background:headerCardBg, backdropFilter:'blur(20px)', border:headerCardBorder, borderRadius:24, padding:'18px 24px', display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:12, transition:'all 0.3s' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:14 }}>
+            <div style={{ width:52, height:52, borderRadius:16, background:'linear-gradient(135deg,#22c55e,#16a34a)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:26, boxShadow:'0 8px 20px rgba(34,197,94,0.3)' }}>🤖</div>
+            <div>
+              <h2 style={{ color:titleColor, margin:0, fontSize:'1.2rem', fontWeight:700, transition:'color 0.3s' }}>FarmWise Agricultural AI</h2>
+              <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:4 }}>
+                <div style={{ width:7, height:7, borderRadius:'50%', background:'#22c55e', boxShadow:'0 0 8px #22c55e', animation:'pulse 2s infinite' }} />
+                <span style={{ color:'#22c55e', fontSize:'0.75rem', fontWeight:700, letterSpacing:1 }}>GEMINI AI · ALWAYS ACTIVE</span>
               </div>
-              {msg.sender === 'bot' && !msg.isError && (
-                <button
-                  onClick={() => speakText(msg.text, msg.id)}
-                  className="speaker-button"
-                  title={speakingMessageId === msg.id ? "Stop speaking" : "Read aloud"}
-                  style={{
-                    background: speakingMessageId === msg.id ? '#ff4444' : '#1f5135',
-                    border: 'none',
-                    borderRadius: '50%',
-                    width: '36px',
-                    height: '36px',
-                    cursor: 'pointer',
-                    fontSize: '18px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                    transition: 'all 0.2s',
-                    marginTop: '5px'
-                  }}
-                >
-                  {speakingMessageId === msg.id ? '⏸️' : '🔊'}
-                </button>
-              )}
+            </div>
+          </div>
+          <LanguageSelector />
+        </div>
+
+        {/* Quick Questions */}
+        <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+          {quickQuestions.map((item, i) => (
+            <button key={i}
+              onClick={() => { setInput(item.q); inputRef.current?.focus(); }}
+              style={{ padding:'7px 14px', borderRadius:20, border:chipBorder, background:chipBg, color:chipColor, cursor:'pointer', fontSize:'0.78rem', fontWeight:600, transition:'all 0.2s', letterSpacing:0.3 }}
+              onMouseEnter={e => { e.currentTarget.style.background = isDarkMode ? 'rgba(34,197,94,0.18)' : 'rgba(34,197,94,0.2)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = chipBg; }}
+            >{item.label}</button>
+          ))}
+        </div>
+
+        {/* Chat Window */}
+        <div style={{ background:panelBg, backdropFilter:'blur(20px)', border:panelBorder, borderRadius:24, overflow:'hidden', boxShadow: isDarkMode ? '0 32px 64px rgba(0,0,0,0.4)' : '0 8px 32px rgba(34,197,94,0.12)', transition:'all 0.3s' }}>
+
+          {/* Messages */}
+          <div style={{ padding:'20px', minHeight:360, maxHeight:460, overflowY:'auto', display:'flex', flexDirection:'column', gap:14 }}>
+            {messages.map(msg => (
+              <div key={msg.id} style={{ display:'flex', alignItems:'flex-end', gap:8, justifyContent: msg.sender==='user' ? 'flex-end' : 'flex-start' }}>
+                {msg.sender === 'bot' && (
+                  <div style={{ width:32, height:32, borderRadius:10, background:'linear-gradient(135deg,#22c55e,#16a34a)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:15, flexShrink:0 }}>🤖</div>
+                )}
+                <div style={{ maxWidth:'72%' }}>
+                  <div style={{
+                    padding:'12px 16px',
+                    borderRadius: msg.sender==='user' ? '20px 20px 4px 20px' : '20px 20px 20px 4px',
+                    background: msg.sender==='user'
+                      ? 'linear-gradient(135deg,#16a34a,#22c55e)'
+                      : msg.isError ? 'rgba(239,68,68,0.1)' : botBubbleBg,
+                    border: msg.sender==='user' ? 'none' : msg.isError ? '1px solid rgba(239,68,68,0.3)' : botBubbleBorder,
+                    color: msg.sender==='user' ? '#fff' : msg.isError ? (isDarkMode?'#fca5a5':'#dc2626') : botTextColor,
+                    fontSize:'0.93rem', lineHeight:1.7,
+                    boxShadow: msg.sender==='user' ? '0 6px 16px rgba(22,163,74,0.3)' : '0 2px 8px rgba(0,0,0,0.08)',
+                    transition:'background 0.3s, color 0.3s'
+                  }} dangerouslySetInnerHTML={{ __html: formatText(msg.text) }} />
+                  {/* Source badge */}
+                  {msg.sender==='bot' && msg.source && (
+                    <div style={{ marginTop:5, display:'inline-flex', alignItems:'center', gap:4, fontSize:'0.7rem', fontWeight:700, padding:'2px 10px', borderRadius:10,
+                      background: msg.source==='Knowledge Base' ? 'rgba(34,197,94,0.1)' : 'rgba(129,140,248,0.1)',
+                      color: msg.source==='Knowledge Base' ? '#22c55e' : '#818cf8',
+                      border:`1px solid ${msg.source==='Knowledge Base' ? 'rgba(34,197,94,0.3)' : 'rgba(129,140,248,0.3)'}` }}>
+                      {msg.source==='Knowledge Base' ? '✅ Knowledge Base' : '🤖 Gemini AI'}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+            {/* Typing indicator */}
+            {loading && (
+              <div style={{ display:'flex', alignItems:'flex-end', gap:8 }}>
+                <div style={{ width:32, height:32, borderRadius:10, background:'linear-gradient(135deg,#22c55e,#16a34a)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:15 }}>🤖</div>
+                <div style={{ padding:'12px 18px', borderRadius:'20px 20px 20px 4px', background:botBubbleBg, border:botBubbleBorder }}>
+                  <div style={{ display:'flex', gap:5, alignItems:'center' }}>
+                    {[0,0.2,0.4].map((delay,i) => (
+                      <div key={i} style={{ width:7,height:7,borderRadius:'50%',background:'#22c55e',animation:`bounce 1.2s ${delay}s infinite` }} />
+                    ))}
+                    <span style={{ color: isDarkMode?'#86efac':'#15803d', fontSize:'0.8rem', marginLeft:8 }}>Thinking…</span>
+                  </div>
+                </div>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Input Bar */}
+          <div style={{ padding:'14px 18px', borderTop:inputBarBorder, background:inputBarBg, display:'flex', gap:10, alignItems:'center', transition:'all 0.3s' }}>
+            <input
+              ref={inputRef}
+              type="text"
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyPress={e => e.key === 'Enter' && handleSubmit()}
+              placeholder="Ask about crops, soil, pests, or schemes…"
+              style={{ flex:1, padding:'13px 18px', borderRadius:30, border:`1.5px solid ${inputBorderNormal}`, background:inputBg, color:inputColor, fontSize:'0.93rem', outline:'none', transition:'all 0.2s' }}
+              onFocus={e => { e.target.style.borderColor = '#22c55e'; e.target.style.boxShadow = '0 0 0 3px rgba(34,197,94,0.12)'; }}
+              onBlur={e => { e.target.style.borderColor = inputBorderNormal; e.target.style.boxShadow = 'none'; }}
+            />
+            <button
+              id="advisor-send-btn"
+              onClick={handleSubmit}
+              disabled={loading || !input.trim()}
+              style={{
+                width:48, height:48, borderRadius:14, border:'none',
+                background: loading||!input.trim() ? 'rgba(34,197,94,0.2)' : 'linear-gradient(135deg,#16a34a,#22c55e)',
+                color: loading||!input.trim() ? (isDarkMode?'#4b5563':'#9ca3af') : '#fff',
+                fontSize:20, cursor: loading ? 'not-allowed' : 'pointer',
+                display:'flex', alignItems:'center', justifyContent:'center',
+                transition:'all 0.2s',
+                boxShadow: loading||!input.trim() ? 'none' : '0 6px 16px rgba(34,197,94,0.35)'
+              }}>➜</button>
+          </div>
+        </div>
+
+        {/* Stats Row */}
+        <div style={{ display:'flex', gap:10, justifyContent:'center', flexWrap:'wrap' }}>
+          {[{icon:'🧠',label:'Gemini AI Powered'},{icon:'📚',label:'200+ Crop Topics'},{icon:'🌐',label:'4 Languages'},{icon:'🔒',label:'Secure & Private'}].map((item,i) => (
+            <div key={i} style={{ display:'flex', alignItems:'center', gap:7, padding:'7px 14px', borderRadius:20, background:statsBg, border:statsBorder, color:statsColor, fontSize:'0.78rem', fontWeight:600, transition:'all 0.3s' }}>
+              <span>{item.icon}</span><span>{item.label}</span>
             </div>
           ))}
-          {loading && <div className="chat-bubble bot">Typing...</div>}
-          <div ref={messagesEndRef} />
         </div>
+      </div>
 
-        <div className="advisor-input">
-          <input
-            type="text"
-            id="question"
-            placeholder="Describe your farming challenge..."
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSubmit()}
-            inputMode="text"
-          />
-
-          <button id="advisor-send-btn" onClick={handleSubmit}>➜</button>
-        </div>
-      </section>
-
-
+      <style>{`
+        @keyframes bounce { 0%,80%,100%{transform:scale(0.6);opacity:0.5} 40%{transform:scale(1);opacity:1} }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+        *::-webkit-scrollbar{width:4px}
+        *::-webkit-scrollbar-thumb{background:rgba(34,197,94,0.3);border-radius:4px}
+      `}</style>
     </div>
   );
 };
 
 export default AdvisorBot3D;
-

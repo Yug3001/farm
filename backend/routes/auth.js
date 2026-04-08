@@ -149,8 +149,10 @@ router.post('/signin', authLimiter, async (req, res) => {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
-    // Successful login — reset attempt counter and record IP
-    await user.resetLoginAttempts(getClientIP(req));
+    // Successful login — reset attempt counter, record IP + device
+    const userAgent = req.headers['user-agent'] || '';
+    await user.resetLoginAttempts(getClientIP(req), userAgent);
+
 
     // Issue JWT with tokenVersion so we can invalidate on logout
     const token = jwt.sign(
@@ -239,6 +241,51 @@ router.put('/profile', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: 'Username already taken' });
     }
     res.status(500).json({ error: 'Update failed. Please try again.' });
+  }
+});
+
+// ─── Get User Activity Stats ───────────────────────────────────────────────────
+router.get('/stats', authMiddleware, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id)
+      .select('username email farmName location preferredLanguage primaryCrop usageStats loginCount lastLogin lastDevice createdAt');
+
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    res.json({
+      success: true,
+      stats: {
+        profile: {
+          username:          user.username,
+          email:             user.email,
+          farmName:          user.farmName,
+          location:          user.location,
+          preferredLanguage: user.preferredLanguage,
+          primaryCrop:       user.primaryCrop,
+          memberSince:       user.createdAt,
+        },
+        activity: {
+          loginCount:            user.loginCount,
+          lastLogin:             user.lastLogin,
+          lastDevice:            user.lastDevice,
+          advisorQuestionsAsked: user.usageStats?.advisorQuestionsAsked || 0,
+          soilAnalysisCount:     user.usageStats?.soilAnalysisCount     || 0,
+          cropAnalysisCount:     user.usageStats?.cropAnalysisCount      || 0,
+          plannersCreated:       user.usageStats?.plannersCreated        || 0,
+          remindersSet:          user.usageStats?.remindersSet           || 0,
+          lastAdvisorUse:        user.usageStats?.lastAdvisorUse,
+          lastSoilScan:          user.usageStats?.lastSoilScan,
+          lastCropScan:          user.usageStats?.lastCropScan,
+          totalActions: (
+            (user.usageStats?.advisorQuestionsAsked || 0) +
+            (user.usageStats?.soilAnalysisCount     || 0) +
+            (user.usageStats?.cropAnalysisCount     || 0)
+          )
+        }
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch stats.' });
   }
 });
 

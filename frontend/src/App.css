@@ -1,26 +1,29 @@
-/* Base Styles from soil.css */
+/* Base Styles */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-  font-family: "Segoe UI", sans-serif;
+  font-family: "Inter", "Segoe UI", sans-serif;
 }
 
 body {
-  background: #f9faf9;
+  background: #ffffff;
   color: #1f2937;
   transition: background 0.3s, color 0.3s;
 }
 
-/* Explicit light mode override — prevents system dark mode from bleeding through */
+/* Light mode — clean white */
 body.light-mode {
-  background: #f9faf9 !important;
+  background: #ffffff !important;
   color: #1f2937 !important;
 }
 
+/* Dark mode — deep dark slate */
 body.dark-mode {
-  background: #121212;
-  color: #e0e0e0;
+  background: #0f172a !important;
+  color: #e2e8f0 !important;
 }
 
 /* NAVBAR */

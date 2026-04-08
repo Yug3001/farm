@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const CropAnalysis = require('../models/CropAnalysis');
+const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
-
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { generateWithRetry, parseGeminiJson, validateStructure } = require('../utils/aiHelper');
 
 // Analyze crop disease
 router.post('/analyze', authMiddleware, async (req, res) => {
@@ -33,81 +33,88 @@ router.post('/analyze', authMiddleware, async (req, res) => {
     if (process.env.GEMINI_API_KEY && imageData && imageData.startsWith('data:image')) {
       console.log('✅ Using AI Analysis (Gemini)');
       try {
-        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
         const base64Data = imageData.split(',')[1];
+        const mimeType = imageData.split(';')[0].split(':')[1];
+        const imagePart = { inlineData: { data: base64Data, mimeType } };
 
-        const imagePart = {
-          inlineData: {
-            data: base64Data,
-            mimeType: imageData.split(';')[0].split(':')[1]
-          }
-        };
+        const prompt = `You are an expert plant pathologist and agronomist AI specializing in Indian crops.
+Analyze this crop/plant image with precision and provide a comprehensive agricultural diagnosis.
 
-        const prompt = `Analyze this crop/plant image comprehensively.
-        
-            🌐 LANGUAGE INSTRUCTION (CRITICAL):
-            - You MUST provide ALL text in ${responseLang}
-            - Field names in JSON should remain in English, but all VALUES must be in ${responseLang}
-            - Use simple language that farmers can understand
-            - If using Hindi/Gujarati/Marathi, use native script (Devanagari/Gujarati)
-            
-            Identify the crop name, scientific name, growth stage, health status, any diseases or pests, and provide detailed care recommendations IN ${responseLang}.
-            
-            Return STRICT JSON format:
-            {
-              "cropName": "Common name in ${responseLang}",
-              "scientificName": "Scientific name",
-              "growthStage": "Stage description in ${responseLang}",
-              "health": {
-                "status": "Healthy/Diseased/Stressed in ${responseLang}",
-                "score": 85
-              },
-              "diseases": [
-                {
-                  "name": "Disease name in ${responseLang}",
-                  "severity": "Low/Medium/High in ${responseLang}",
-                  "treatment": "Treatment recommendation in ${responseLang}"
-                }
-              ],
-              "pests": [
-                {
-                  "name": "Pest name in ${responseLang}",
-                  "severity": "Low/Medium/High in ${responseLang}",
-                  "treatment": "Treatment recommendation in ${responseLang}"
-                }
-              ],
-              "recommendations": ["recommendation 1 in ${responseLang}", "recommendation 2 in ${responseLang}"],
-              "careInstructions": {
-                "watering": "Watering instructions in ${responseLang}",
-                "fertilization": "Fertilization instructions in ${responseLang}",
-                "pruning": "Pruning instructions in ${responseLang}",
-                "pestControl": "Pest control instructions in ${responseLang}"
-              },
-              "harvestPrediction": {
-                "estimatedDays": 45,
-                "expectedYield": "Yield estimate in ${responseLang}"
-              }
-            }
-            
-            If the image is NOT a plant/crop, return: { "error": "Invalid image: Not a plant in ${responseLang}" }`;
+🌐 LANGUAGE: ALL values must be in ${responseLang} ONLY. JSON keys stay in English.
 
-        const result = await model.generateContent([prompt, imagePart]);
-        const response = await result.response;
-        const text = response.text().replace(/```json/g, '').replace(/```/g, '').trim();
+DETAILED ANALYSIS STEPS:
+1. Identify the exact crop species (common + scientific name)
+2. Determine growth stage (seedling/vegetative/flowering/fruiting/maturity)
+3. Assess overall plant health (check leaf color, texture, spots, wilting, deformities)
+4. Diagnose any diseases — look for: spots, lesions, rust, mold, wilting patterns
+5. Identify pests — look for: holes, webs, sticky residue, insect bodies
+6. Rate health score 0-100 based on observed symptoms
+7. Provide evidence-based treatment recommendations
+8. Estimate harvest timeline based on growth stage
 
-        const aiAnalysis = JSON.parse(text);
+Return STRICT valid JSON only (no markdown):
+{
+  "cropName": "exact common crop name in ${responseLang}",
+  "scientificName": "botanical scientific name in Latin",
+  "growthStage": "specific growth stage in ${responseLang}",
+  "health": {
+    "status": "Healthy / Mildly Stressed / Diseased / Severely Diseased in ${responseLang}",
+    "score": 75
+  },
+  "diseases": [
+    {
+      "name": "specific disease name in ${responseLang}",
+      "severity": "Low / Medium / High in ${responseLang}",
+      "symptoms": "visible symptoms observed in ${responseLang}",
+      "treatment": "specific treatment with product names and doses in ${responseLang}"
+    }
+  ],
+  "pests": [
+    {
+      "name": "specific pest name in ${responseLang}",
+      "severity": "Low / Medium / High in ${responseLang}",
+      "treatment": "specific control method in ${responseLang}"
+    }
+  ],
+  "recommendations": [
+    "priority action 1 in ${responseLang}",
+    "priority action 2 in ${responseLang}",
+    "preventive measure in ${responseLang}"
+  ],
+  "careInstructions": {
+    "watering": "specific watering schedule and method in ${responseLang}",
+    "fertilization": "NPK recommendation with timing in ${responseLang}",
+    "pruning": "pruning advice if applicable in ${responseLang}",
+    "pestControl": "integrated pest management steps in ${responseLang}"
+  },
+  "harvestPrediction": {
+    "estimatedDays": 45,
+    "expectedYield": "yield estimate with unit per acre/hectare in ${responseLang}"
+  }
+}
+
+If image is NOT a plant/crop, return exactly:
+{ "error": "Invalid image: Please upload a clear photo of a crop or plant." }`;
+
+        const rawText = await generateWithRetry(prompt, [imagePart]);
+        const aiAnalysis = parseGeminiJson(rawText);
 
         if (aiAnalysis.error) {
           return res.json({ success: false, error: aiAnalysis.error });
         }
 
-        analysisData = aiAnalysis;
-        console.log('✅ AI Analysis Successful');
+        // Validate key fields
+        const required = ['cropName', 'health', 'recommendations', 'careInstructions'];
+        if (!validateStructure(aiAnalysis, required)) {
+          console.warn('[Crop] AI response missing required fields, using simulation fallback');
+          analysisData = getSimulatedCropAnalysis(language);
+        } else {
+          analysisData = aiAnalysis;
+          console.log('✅ AI Analysis Successful');
+        }
 
       } catch (aiError) {
-        console.error("❌ AI Analysis failed:", aiError.message);
+        console.error('❌ AI Analysis failed:', aiError.message);
         console.log('⚠️ Falling back to simulation mode');
         analysisData = getSimulatedCropAnalysis(language);
       }
@@ -127,10 +134,12 @@ router.post('/analyze', authMiddleware, async (req, res) => {
 
     await cropAnalysis.save();
 
-    res.json({
-      success: true,
-      analysis: cropAnalysis
-    });
+    // Track usage in MongoDB (fire-and-forget)
+    User.findById(req.user._id)
+      .then(u => u?.trackUsage('crop'))
+      .catch(err => console.warn('[DB] trackUsage failed:', err.message));
+
+    res.json({ success: true, analysis: cropAnalysis });
 
   } catch (error) {
     console.error('Crop analysis error:', error);
