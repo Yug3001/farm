@@ -9,7 +9,7 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 /**
  * Initialize Gemini model (singleton per key)
  */
-function getGeminiModel(modelName = 'gemini-flash-latest') {
+function getGeminiModel(modelName = 'gemini-2.0-flash') {
   if (!process.env.GEMINI_API_KEY) {
     throw new Error('GEMINI_API_KEY is not set in environment variables');
   }
@@ -27,11 +27,15 @@ function getGeminiModel(modelName = 'gemini-flash-latest') {
 async function generateWithRetry(prompt, parts = [], retries = 2) {
   const model = getGeminiModel();
 
-  const contents = parts.length > 0 ? [prompt, ...parts] : [prompt];
+  // Build a proper parts array: text prompt first, then any inline data (images, etc.)
+  const contentParts = [
+    { text: prompt },
+    ...parts
+  ];
 
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      const result = await model.generateContent(contents);
+      const result = await model.generateContent({ contents: [{ role: 'user', parts: contentParts }] });
       const response = result.response;
       const text = response.text();
       if (!text || text.trim().length === 0) {
