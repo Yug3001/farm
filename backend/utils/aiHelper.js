@@ -26,12 +26,28 @@ function getGeminiModel(modelName = 'gemini-1.5-flash') {
  */
 async function generateWithRetry(prompt, parts = [], retries = 2) {
   const model = getGeminiModel();
-  const contents = parts.length > 0 ? [prompt, ...parts] : [prompt];
+
+  // Build the correct content format for the Gemini SDK:
+  // - Text-only: pass a plain string
+  // - Multimodal (vision): pass a { parts: [...] } object with text + inline data
+  let contents;
+  if (parts.length > 0) {
+    // Vision call — combine text prompt and image parts into a single `parts` array
+    contents = {
+      parts: [
+        { text: prompt },
+        ...parts,
+      ],
+    };
+  } else {
+    // Text-only call — plain string is the simplest valid input
+    contents = prompt;
+  }
 
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       const result = await model.generateContent(contents);
-      const response = await result.response;
+      const response = result.response;
       const text = response.text();
       if (!text || text.trim().length === 0) {
         throw new Error('Empty response from Gemini');

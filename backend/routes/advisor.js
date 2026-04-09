@@ -266,7 +266,7 @@ Respond in ${responseLang} with expert, practical advice:`
 
 
         const result = await model.generateContent(prompt);
-        const response = await result.response;
+        const response = result.response;
         const aiAnswer = response.text().trim();
 
         // Track usage in MongoDB (fire-and-forget)
