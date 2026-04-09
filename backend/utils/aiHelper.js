@@ -9,7 +9,7 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 /**
  * Initialize Gemini model (singleton per key)
  */
-function getGeminiModel(modelName = 'gemini-1.5-flash') {
+function getGeminiModel(modelName = 'gemini-flash-latest') {
   if (!process.env.GEMINI_API_KEY) {
     throw new Error('GEMINI_API_KEY is not set in environment variables');
   }
@@ -27,22 +27,7 @@ function getGeminiModel(modelName = 'gemini-1.5-flash') {
 async function generateWithRetry(prompt, parts = [], retries = 2) {
   const model = getGeminiModel();
 
-  // Build the correct content format for the Gemini SDK:
-  // - Text-only: pass a plain string
-  // - Multimodal (vision): pass a { parts: [...] } object with text + inline data
-  let contents;
-  if (parts.length > 0) {
-    // Vision call — combine text prompt and image parts into a single `parts` array
-    contents = {
-      parts: [
-        { text: prompt },
-        ...parts,
-      ],
-    };
-  } else {
-    // Text-only call — plain string is the simplest valid input
-    contents = prompt;
-  }
+  const contents = parts.length > 0 ? [prompt, ...parts] : [prompt];
 
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
