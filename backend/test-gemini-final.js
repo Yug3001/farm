@@ -1,7 +1,7 @@
 require('dotenv').config();
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-const MODEL = 'gemini-2.0-flash';
+const MODEL = 'gemini-flash-latest';
 
 async function testTextGeneration() {
   console.log('\n─── TEST 1: Text Generation (Advisor) ───');

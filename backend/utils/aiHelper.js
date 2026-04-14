@@ -9,7 +9,7 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 /**
  * Initialize Gemini model (singleton per key)
  */
-function getGeminiModel(modelName = 'gemini-2.0-flash') {
+function getGeminiModel(modelName = 'gemini-flash-latest') {
   if (!process.env.GEMINI_API_KEY) {
     throw new Error('GEMINI_API_KEY is not set in environment variables');
   }
