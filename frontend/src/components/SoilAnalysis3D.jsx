@@ -1,10 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import axios from 'axios';
-import { useLanguage } from '../contexts/LanguageContext';
-import LanguageSelector from './LanguageSelector';
 
 const SoilAnalysis3D = ({ isDarkMode = false }) => {
-  const { selectedLanguage } = useLanguage();
   const [analyzing, setAnalyzing] = useState(false);
   const [results, setResults] = useState(null);
   const [error, setError] = useState(null);
@@ -13,17 +10,12 @@ const SoilAnalysis3D = ({ isDarkMode = false }) => {
   const [dragOver, setDragOver] = useState(false);
 
   // Theme palette
-  const bg          = isDarkMode ? 'linear-gradient(135deg,#0a1628 0%,#0d2b1a 50%,#0a1628 100%)' : '#f0fdf4';
-  const cardBg      = isDarkMode ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.95)';
-  const cardBorder  = isDarkMode ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(180,83,9,0.15)';
-  const textMain    = isDarkMode ? '#d6d3d1' : '#1c1917';
-  const textMuted   = isDarkMode ? '#78716c' : '#6b7280';
-  const emptyColor  = isDarkMode ? '#4b6957' : '#9ca3af';
-
-  useEffect(() => {
-    if (results) setResults(null);
-    setError(null);
-  }, [selectedLanguage]);
+  const bg         = isDarkMode ? 'linear-gradient(135deg,#0a1628 0%,#0d2b1a 50%,#0a1628 100%)' : '#f0fdf4';
+  const cardBg     = isDarkMode ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.95)';
+  const cardBorder = isDarkMode ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(180,83,9,0.15)';
+  const textMain   = isDarkMode ? '#d6d3d1' : '#1c1917';
+  const textMuted  = isDarkMode ? '#78716c' : '#6b7280';
+  const emptyColor = isDarkMode ? '#4b6957' : '#9ca3af';
 
   const handleFileChange = (file) => {
     if (!file) return;
@@ -57,7 +49,7 @@ const SoilAnalysis3D = ({ isDarkMode = false }) => {
         if (!token) { window.location.href = '/signin'; return; }
 
         const response = await axios.post('http://localhost:5000/api/soil/analyze', {
-          imageData: reader.result, location: '', notes: '', language: selectedLanguage
+          imageData: reader.result, location: '', notes: ''
         }, { headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } });
 
         if (response.data.success) setResults(response.data.analysis.analysis);
@@ -155,27 +147,24 @@ const SoilAnalysis3D = ({ isDarkMode = false }) => {
 
         <input type="file" accept="image/*" ref={fileInputRef} style={{ display: 'none' }} onChange={e => handleFileChange(e.target.files[0])} />
 
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          <button
-            onClick={handleAnalyze}
-            disabled={analyzing || !selectedImage}
-            style={{
-              flex: 1, padding: '16px 24px', borderRadius: 18, border: 'none',
-              background: !selectedImage ? 'rgba(180,83,9,0.2)' : analyzing ? 'rgba(180,83,9,0.4)' : 'linear-gradient(135deg,#92400e,#b45309)',
-              color: !selectedImage ? '#78716c' : '#fff', fontSize: '1rem', fontWeight: 700,
-              cursor: !selectedImage || analyzing ? 'not-allowed' : 'pointer',
-              transition: 'all 0.3s', boxShadow: selectedImage && !analyzing ? '0 8px 24px rgba(180,83,9,0.4)' : 'none'
-            }}
-          >
-            {analyzing ? (
-              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-                <span style={{ display: 'inline-block', width: 18, height: 18, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-                Analyzing...
-              </span>
-            ) : '🔬 Analyze Soil'}
-          </button>
-          <LanguageSelector />
-        </div>
+        <button
+          onClick={handleAnalyze}
+          disabled={analyzing || !selectedImage}
+          style={{
+            padding: '16px 24px', borderRadius: 18, border: 'none',
+            background: !selectedImage ? 'rgba(180,83,9,0.2)' : analyzing ? 'rgba(180,83,9,0.4)' : 'linear-gradient(135deg,#92400e,#b45309)',
+            color: !selectedImage ? '#78716c' : '#fff', fontSize: '1rem', fontWeight: 700,
+            cursor: !selectedImage || analyzing ? 'not-allowed' : 'pointer',
+            transition: 'all 0.3s', boxShadow: selectedImage && !analyzing ? '0 8px 24px rgba(180,83,9,0.4)' : 'none'
+          }}
+        >
+          {analyzing ? (
+            <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+              <span style={{ display: 'inline-block', width: 18, height: 18, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+              Analyzing...
+            </span>
+          ) : '🔬 Analyze Soil'}
+        </button>
 
         {error && (
           <div style={{ padding: '14px 18px', borderRadius: 14, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#fca5a5', fontSize: '0.88rem' }}>

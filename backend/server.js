@@ -35,8 +35,11 @@ app.use(extraHeaders);
 const allowedOrigins = [
   'http://localhost:3000',
   'http://127.0.0.1:3000',
-  // Add your production domain here when deploying, e.g.:
-  // 'https://farmwise.yourdomain.com'
+  'http://localhost:3001',
+  'http://localhost:5173', // Vite dev server
+  'http://127.0.0.1:5173',
+  // Production URL from env (if set)
+  ...(process.env.VITE_API_BASE_URL ? [process.env.VITE_API_BASE_URL.replace('/api', '').replace(':5000', ':3000')] : []),
 ];
 
 app.use(cors({

@@ -8,24 +8,14 @@ const { generateWithRetry, parseGeminiJson, validateStructure } = require('../ut
 // Analyze soil sample
 router.post('/analyze', authMiddleware, async (req, res) => {
   try {
-    const { imageData, location, notes, language = 'en' } = req.body;
+    const { imageData, location, notes } = req.body;
 
     // Debug logging
     console.log('🔍 Soil Analysis Request Received');
     console.log('API Key Present:', !!process.env.GEMINI_API_KEY);
     console.log('Image Data Present:', !!imageData);
     console.log('Image Data Valid:', imageData && imageData.startsWith('data:image'));
-    console.log('Language:', language);
 
-    // Language name mapping
-    const languageNames = {
-      'en': 'English',
-      'hi': 'Hindi (हिंदी)',
-      'gu': 'Gujarati (ગુજરાતી)',
-      'mr': 'Marathi (मराठी)'
-    };
-
-    const responseLang = languageNames[language] || 'English';
     let analysisData = {};
 
     // Use Gemini AI if Key is available and valid image data provided
@@ -43,9 +33,6 @@ router.post('/analyze', authMiddleware, async (req, res) => {
         const prompt = `You are an expert soil scientist AI specializing in Indian agriculture.
 Carefully analyze this soil image and provide a precise agricultural assessment.
 
-🌐 LANGUAGE: Respond with ALL values in ${responseLang} ONLY.
-JSON keys must remain in English; only VALUES are translated.
-
 ANALYSIS INSTRUCTIONS:
 1. Examine soil color carefully (dark = organic, red = iron, pale = low fertility)
 2. Estimate texture from visual cues (clay = smooth/sticky, sandy = grainy, loam = balanced)
@@ -58,20 +45,20 @@ ANALYSIS INSTRUCTIONS:
 
 Return STRICT valid JSON only (no markdown, no prose):
 {
-  "soilType": "specific soil type name in ${responseLang}",
-  "texture": "detailed texture description in ${responseLang}",
-  "color": "specific color description (Munsell-style if possible) in ${responseLang}",
-  "moisture": "moisture level estimate with percentage in ${responseLang}",
-  "organicMatter": "organic matter level with percentage in ${responseLang}",
-  "ph": { "value": "estimated pH value like 6.5", "category": "acidic/neutral/alkaline in ${responseLang}" },
+  "soilType": "specific soil type name",
+  "texture": "detailed texture description",
+  "color": "specific color description (Munsell-style if possible)",
+  "moisture": "moisture level estimate with percentage",
+  "organicMatter": "organic matter level with percentage",
+  "ph": { "value": "estimated pH value like 6.5", "category": "acidic/neutral/alkaline" },
   "nutrients": {
-    "nitrogen": "level (Low/Medium/High) with ppm estimate in ${responseLang}",
-    "phosphorus": "level (Low/Medium/High) with ppm estimate in ${responseLang}",
-    "potassium": "level (Low/Medium/High) with ppm estimate in ${responseLang}"
+    "nitrogen": "level (Low/Medium/High) with ppm estimate",
+    "phosphorus": "level (Low/Medium/High) with ppm estimate",
+    "potassium": "level (Low/Medium/High) with ppm estimate"
   },
-  "recommendations": ["specific recommendation 1 in ${responseLang}", "specific recommendation 2 in ${responseLang}", "specific recommendation 3 in ${responseLang}"],
-  "suitableCrops": ["crop 1 in ${responseLang}", "crop 2 in ${responseLang}", "crop 3 in ${responseLang}", "crop 4 in ${responseLang}"],
-  "improvements": ["specific improvement 1 with dosage in ${responseLang}", "specific improvement 2 in ${responseLang}", "specific improvement 3 in ${responseLang}"]
+  "recommendations": ["specific recommendation 1", "specific recommendation 2", "specific recommendation 3"],
+  "suitableCrops": ["crop 1", "crop 2", "crop 3", "crop 4"],
+  "improvements": ["specific improvement 1 with dosage", "specific improvement 2", "specific improvement 3"]
 }
 
 If the image is clearly NOT soil (e.g. a person, food, object), return:
@@ -88,7 +75,7 @@ If the image is clearly NOT soil (e.g. a person, food, object), return:
         const required = ['soilType', 'texture', 'ph', 'nutrients', 'recommendations', 'suitableCrops'];
         if (!validateStructure(aiAnalysis, required)) {
           console.warn('[Soil] AI response missing required fields, using simulation fallback');
-          analysisData = getSimulatedAnalysis(language);
+          analysisData = getSimulatedAnalysis();
         } else {
           analysisData = aiAnalysis;
           console.log('✅ AI Analysis Successful');
@@ -97,11 +84,11 @@ If the image is clearly NOT soil (e.g. a person, food, object), return:
       } catch (aiError) {
         console.error('❌ AI Analysis failed:', aiError.message);
         console.log('⚠️ Falling back to simulation mode');
-        analysisData = getSimulatedAnalysis(language);
+        analysisData = getSimulatedAnalysis();
       }
     } else {
       console.log('⚠️ Using Fallback Mode (Simulation)');
-      analysisData = getSimulatedAnalysis(language);
+      analysisData = getSimulatedAnalysis();
     }
 
     // Save to database
@@ -187,127 +174,85 @@ router.delete('/:id', authMiddleware, async (req, res) => {
   }
 });
 
-// Helper function for simulated analysis
-function getSimulatedAnalysis(language = 'en') {
-  const translations = {
-    en: {
-      scenarios: [
-        {
-          soilType: 'Nitrogen Deficient Loam',
-          texture: 'Medium loam with good drainage',
-          color: 'Light brown with yellowish tint',
-          moisture: 'Moderate (30%)',
-          organicMatter: 'Low (1.5%)',
-          ph: { value: '6.8', category: 'Slightly acidic' },
-          nutrients: {
-            nitrogen: 'Low (45 ppm)',
-            phosphorus: 'Medium (35 ppm)',
-            potassium: 'High (180 ppm)'
-          },
-          recommendations: [
-            'Apply Vermicompost (2 tons/acre) or grow legume cover crops',
-            'Apply Urea in split doses for immediate nitrogen boost',
-            'Ensure adequate moisture for nitrogen uptake'
-          ],
-          suitableCrops: ['Legumes', 'Beans', 'Peas'],
-          improvements: [
-            'Add organic matter through composting',
-            'Practice crop rotation with nitrogen-fixing plants',
-            'Monitor soil moisture regularly'
-          ]
-        }
+// Helper function for simulated analysis (English only)
+function getSimulatedAnalysis() {
+  const scenarios = [
+    {
+      soilType: 'Loam Soil with Low Nitrogen',
+      texture: 'Medium loam with good drainage and moderate water retention',
+      color: 'Light brown with slight yellowish tint (Munsell: 10YR 5/3)',
+      moisture: 'Moderate (28-35%)',
+      organicMatter: 'Low (1.2-1.8%)',
+      ph: { value: '6.8', category: 'Slightly Acidic' },
+      nutrients: {
+        nitrogen: 'Low (40-50 ppm) — deficiency likely',
+        phosphorus: 'Medium (30-40 ppm)',
+        potassium: 'High (170-190 ppm)'
+      },
+      recommendations: [
+        'Apply Vermicompost (2 tons/acre) or cow dung manure (10 t/ha) to boost nitrogen and organic matter',
+        'Add Urea (100-120 kg/ha) in 2-3 split applications for immediate nitrogen correction',
+        'Maintain adequate moisture (field capacity) for proper nitrogen uptake and microbial activity'
+      ],
+      suitableCrops: ['Wheat', 'Maize', 'Chickpea', 'Mustard'],
+      improvements: [
+        'Add organic matter: apply well-decomposed compost 5-10 tons/ha before sowing season',
+        'Grow green manure crops (Dhaincha/Sunhemp) before the main crop to fix nitrogen naturally',
+        'Conduct soil testing every 2 years and follow crop-specific fertilizer recommendations'
       ]
     },
-    hi: {
-      scenarios: [
-        {
-          soilType: 'नाइट्रोजन की कमी वाली दोमट मिट्टी',
-          texture: 'अच्छी जल निकासी के साथ मध्यम दोमट',
-          color: 'पीले रंग की छाया के साथ हल्का भूरा',
-          moisture: 'मध्यम (30%)',
-          organicMatter: 'कम (1.5%)',
-          ph: { value: '6.8', category: 'थोड़ा अम्लीय' },
-          nutrients: {
-            nitrogen: 'कम (45 पीपीएम)',
-            phosphorus: 'मध्यम (35 पीपीएम)',
-            potassium: 'उच्च (180 पीपीएम)'
-          },
-          recommendations: [
-            'वर्मीकम्पोस्ट (2 टन/एकड़) डालें या फलीदार फसलें उगाएं',
-            'तत्काल नाइट्रोजन बढ़ाने के लिए यूरिया को विभाजित खुराक में डालें',
-            'नाइट्रोजन अवशोषण के लिए पर्याप्त नमी सुनिश्चित करें'
-          ],
-          suitableCrops: ['दालें', 'बीन्स', 'मटर'],
-          improvements: [
-            'खाद बनाकर जैविक पदार्थ जोड़ें',
-            'नाइट्रोजन स्थिरीकरण करने वाले पौधों के साथ फसल चक्र अपनाएं',
-            'मिट्टी की नमी की नियमित निगरानी करें'
-          ]
-        }
+    {
+      soilType: 'Black Cotton Soil (Vertisol)',
+      texture: 'Heavy clay (50-60% clay), high water retention, cracks deeply when dry',
+      color: 'Dark grey to black — rich in montmorillonite clay minerals',
+      moisture: 'High (45-55%) — currently well-moistened',
+      organicMatter: 'Medium (2.0-2.8%)',
+      ph: { value: '7.5', category: 'Neutral to Slightly Alkaline' },
+      nutrients: {
+        nitrogen: 'Medium (55-70 ppm)',
+        phosphorus: 'Low (15-20 ppm) — needs supplementation',
+        potassium: 'High (200-260 ppm) — abundant'
+      },
+      recommendations: [
+        'Apply DAP (Di-Ammonium Phosphate) 100-120 kg/ha as basal dose before sowing',
+        'Improve field drainage with raised beds or broad bed furrow (BBF) system',
+        'Add Gypsum (2-3 tons/ha) to improve soil structure and prevent waterlogging damage'
+      ],
+      suitableCrops: ['Cotton', 'Sugarcane', 'Soybean', 'Wheat'],
+      improvements: [
+        'Deep summer plowing to break hard pan layer and improve root penetration',
+        'Apply Gypsum (Calcium Sulfate) 5 tons/ha to displace sodium and open soil pores',
+        'Use Broad Bed Furrow system for improved drainage and water management'
       ]
     },
-    gu: {
-      scenarios: [
-        {
-          soilType: 'નાઇટ્રોજનની ઉણપવાળી દોમટ માટી',
-          texture: 'સારા ડ્રેનેજ સાથે મધ્યમ દોમટ',
-          color: 'પીળા રંગના સંકેત સાથે હળવો ભૂરો',
-          moisture: 'મધ્યમ (30%)',
-          organicMatter: 'ઓછું (1.5%)',
-          ph: { value: '6.8', category: 'થોડું એસિડિક' },
-          nutrients: {
-            nitrogen: 'ઓછું (45 પીપીએમ)',
-            phosphorus: 'મધ્યમ (35 પીપીએમ)',
-            potassium: 'વધારે (180 પીપીએમ)'
-          },
-          recommendations: [
-            'વર્મીકમ્પોસ્ટ (2 ટન/એકર) નાખો અથવા કઠોળ પાક ઉગાડો',
-            'તાત્કાલિક નાઇટ્રોજન વધારવા માટે યુરિયાને વિભાજિત માત્રામાં નાખો',
-            'નાઇટ્રોજન શોષણ માટે પૂરતી ભેજ સુનિશ્ચિત કરો'
-          ],
-          suitableCrops: ['કઠોળ', 'બીન્સ', 'વટાણા'],
-          improvements: [
-            'ખાતર બનાવીને કાર્બનિક પદાર્થ ઉમેરો',
-            'નાઇટ્રોજન સ્થિર કરતા છોડ સાથે પાક ફેરબદલ કરો',
-            'માટીની ભેજનું નિયમિત નિરીક્ષણ કરો'
-          ]
-        }
-      ]
-    },
-    mr: {
-      scenarios: [
-        {
-          soilType: 'नायट्रोजनची कमतरता असलेली दोमट माती',
-          texture: 'चांगल्या निचरा सह मध्यम दोमट',
-          color: 'पिवळसर छटा असलेला हलका तपकिरी',
-          moisture: 'मध्यम (30%)',
-          organicMatter: 'कमी (1.5%)',
-          ph: { value: '6.8', category: 'किंचित आम्लयुक्त' },
-          nutrients: {
-            nitrogen: 'कमी (45 पीपीएम)',
-            phosphorus: 'मध्यम (35 पीपीएम)',
-            potassium: 'जास्त (180 पीपीएम)'
-          },
-          recommendations: [
-            'व्हर्मीकम्पोस्ट (2 टन/एकर) घाला किंवा शेंगा पिके लावा',
-            'त्वरित नायट्रोजन वाढवण्यासाठी युरिया विभाजित डोसमध्ये घाला',
-            'नायट्रोजन शोषणासाठी पुरेशी ओलावा सुनिश्चित करा'
-          ],
-          suitableCrops: ['डाळी', 'बीन्स', 'वाटाणा'],
-          improvements: [
-            'कंपोस्टिंगद्वारे सेंद्रिय पदार्थ जोडा',
-            'नायट्रोजन स्थिर करणाऱ्या वनस्पतींसह पीक फेरबदल करा',
-            'मातीच्या ओलाव्याचे नियमित निरीक्षण करा'
-          ]
-        }
+    {
+      soilType: 'Red Laterite Soil',
+      texture: 'Sandy loam, low cohesion, good aeration but prone to erosion',
+      color: 'Reddish-brown — high iron oxide (hematite) content',
+      moisture: 'Low (15-22%) — tends to dry quickly',
+      organicMatter: 'Very Low (0.6-1.2%) — needs urgent improvement',
+      ph: { value: '5.8', category: 'Acidic — needs liming' },
+      nutrients: {
+        nitrogen: 'Low (30-45 ppm)',
+        phosphorus: 'Very Low (8-15 ppm) — phosphorus fixed by iron',
+        potassium: 'Medium (90-120 ppm)'
+      },
+      recommendations: [
+        'Apply Agricultural Lime (CaCO3) 2-3 tons/ha to raise pH to 6.5 for better nutrient availability',
+        'Add heavy organic matter — 15-20 tons FYM/ha annually to build organic carbon',
+        'Use drip irrigation to minimize water loss and ensure efficient nutrient delivery'
+      ],
+      suitableCrops: ['Groundnut', 'Maize', 'Pearl Millet (Bajra)', 'Castor'],
+      improvements: [
+        'Lime application: raise pH from 5.8 to 6.5 for 30-40% better phosphorus and nutrient availability',
+        'Apply Bone Meal or Rock Phosphate (200-300 kg/ha) for slow-release phosphorus in acidic soil',
+        'Mulch with crop residues (5-7 cm thick) to reduce soil temperature and retain moisture'
       ]
     }
-  };
+  ];
 
-  const langData = translations[language] || translations['en'];
-  return langData.scenarios[Math.floor(Math.random() * langData.scenarios.length)];
+  return scenarios[Math.floor(Math.random() * scenarios.length)];
 }
-
 
 
 module.exports = router;

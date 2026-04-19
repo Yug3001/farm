@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import './SignIn.css';
+import { Link } from 'react-router-dom';
 import axios from 'axios';
+import './SignIn.css';
 
 const SignIn = ({ onSuccess }) => {
-  const [formData, setFormData] = useState({
-    email: '',
-    password: ''
-  });
+  const [formData, setFormData] = useState({ email: '', password: '' });
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
@@ -24,44 +22,57 @@ const SignIn = ({ onSuccess }) => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFormData(prev => ({ ...prev, [name]: value }));
+    if (error) setError(''); // Clear error on typing
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setSuccess('');
+
+    // Client-side validation
+    if (!formData.email.trim()) return setError('Please enter your email address.');
+    if (!formData.password) return setError('Please enter your password.');
+
     setLoading(true);
-
     try {
-      const response = await axios.post('http://localhost:5000/api/auth/signin', formData);
-      setSuccess('Welcome back! 🌱');
+      const response = await axios.post('http://localhost:5000/api/auth/signin', {
+        email: formData.email.trim().toLowerCase(),
+        password: formData.password,
+      });
 
+      // Store token & user info
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
 
       // Handle 'Remember Me'
       if (rememberMe) {
-        localStorage.setItem('rememberedEmail', formData.email);
+        localStorage.setItem('rememberedEmail', formData.email.trim());
       } else {
         localStorage.removeItem('rememberedEmail');
       }
 
-      // Clear form
-      setFormData({
-        email: '',
-        password: ''
-      });
+      setSuccess('Welcome back! 🌱 Redirecting...');
 
-      // Call onSuccess callback
-      if (onSuccess) {
-        setTimeout(() => onSuccess(), 1000);
-      }
+      // Call onSuccess callback after short delay
+      setTimeout(() => {
+        if (onSuccess) onSuccess();
+      }, 800);
+
     } catch (err) {
-      setError(err.response?.data?.error || 'Sign in failed. Please try again.');
+      const msg = err.response?.data?.error;
+      if (err.response?.status === 423) {
+        setError('🔒 ' + (msg || 'Account temporarily locked. Please try again later.'));
+      } else if (err.response?.status === 401) {
+        setError('❌ Invalid email or password. Please check and try again.');
+      } else if (err.response?.status === 429) {
+        setError('⏱️ Too many attempts. Please wait 15 minutes and try again.');
+      } else if (!err.response) {
+        setError('🌐 Cannot connect to server. Make sure the backend is running on port 5000.');
+      } else {
+        setError(msg || 'Sign in failed. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -76,9 +87,9 @@ const SignIn = ({ onSuccess }) => {
         {error && <div className="alert error">{error}</div>}
         {success && <div className="alert success">{success}</div>}
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} noValidate>
           <div className="form-group">
-            <label htmlFor="email">Email</label>
+            <label htmlFor="email">Email Address</label>
             <input
               type="email"
               id="email"
@@ -86,6 +97,8 @@ const SignIn = ({ onSuccess }) => {
               value={formData.email}
               onChange={handleChange}
               placeholder="Enter your email"
+              autoComplete="email"
+              disabled={loading}
               required
             />
           </div>
@@ -94,21 +107,24 @@ const SignIn = ({ onSuccess }) => {
             <label htmlFor="password">Password</label>
             <div className="password-input-wrapper">
               <input
-                type={showPassword ? "text" : "password"}
+                type={showPassword ? 'text' : 'password'}
                 id="password"
                 name="password"
                 value={formData.password}
                 onChange={handleChange}
                 placeholder="Enter your password"
+                autoComplete="current-password"
+                disabled={loading}
                 required
               />
               <button
                 type="button"
                 className="password-toggle"
                 onClick={() => setShowPassword(!showPassword)}
-                title={showPassword ? "Hide Password" : "Show Password"}
+                title={showPassword ? 'Hide Password' : 'Show Password'}
+                tabIndex={-1}
               >
-                {showPassword ? "🐵" : "🙈"}
+                {showPassword ? '👁️' : '🙈'}
               </button>
             </div>
           </div>
@@ -124,16 +140,20 @@ const SignIn = ({ onSuccess }) => {
             </label>
           </div>
 
-          <button type="submit" disabled={loading} className="submit-btn">
-            {loading ? 'Signing In...' : 'Sign In'}
+          <button
+            type="submit"
+            disabled={loading}
+            className="submit-btn"
+            id="signin-submit-btn"
+          >
+            {loading ? '⏳ Signing In...' : '🌱 Sign In'}
           </button>
         </form>
 
         <p className="signup-link">
-          Don't have an account? <a href="/signup">Sign Up</a>
+          Don't have an account?{' '}
+          <Link to="/signup">Create Account →</Link>
         </p>
-
-
       </div>
     </div>
   );

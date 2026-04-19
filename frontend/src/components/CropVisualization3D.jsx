@@ -1,10 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import axios from 'axios';
-import { useLanguage } from '../contexts/LanguageContext';
-import LanguageSelector from './LanguageSelector';
 
 const CropVisualization3D = ({ isDarkMode = false }) => {
-  const { selectedLanguage } = useLanguage();
   const [scanning, setScanning] = useState(false);
   const [results, setResults] = useState(null);
   const [error, setError] = useState(null);
@@ -20,11 +17,6 @@ const CropVisualization3D = ({ isDarkMode = false }) => {
   const textMuted = isDarkMode ? '#4b6957' : '#6b7280';
   const titleColor= isDarkMode ? '#fff' : '#14532d';
   const tipColor  = isDarkMode ? '#4b5563' : '#6b7280';
-
-  useEffect(() => {
-    if (results) setResults(null);
-    setError(null);
-  }, [selectedLanguage]);
 
   const handleFileChange = (file) => {
     if (!file) return;
@@ -57,7 +49,7 @@ const CropVisualization3D = ({ isDarkMode = false }) => {
         if (!token) { window.location.href = '/signin'; return; }
 
         const response = await axios.post('http://localhost:5000/api/crop/analyze', {
-          imageData: reader.result, location: '', notes: '', language: selectedLanguage
+          imageData: reader.result, location: '', notes: ''
         }, { headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } });
 
         if (response.data.success) setResults(response.data.analysis.analysis);
@@ -174,7 +166,6 @@ const CropVisualization3D = ({ isDarkMode = false }) => {
               </span>
             ) : '🔍 Diagnose Crop'}
           </button>
-          <LanguageSelector />
         </div>
 
         {error && (

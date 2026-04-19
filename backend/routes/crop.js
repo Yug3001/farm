@@ -8,24 +8,13 @@ const { generateWithRetry, parseGeminiJson, validateStructure } = require('../ut
 // Analyze crop disease
 router.post('/analyze', authMiddleware, async (req, res) => {
   try {
-    const { imageData, location, notes, language = 'en' } = req.body;
+    const { imageData, location, notes } = req.body;
 
     // Debug logging
     console.log('🌿 Crop Analysis Request Received');
     console.log('API Key Present:', !!process.env.GEMINI_API_KEY);
     console.log('Image Data Present:', !!imageData);
     console.log('Image Data Valid:', imageData && imageData.startsWith('data:image'));
-    console.log('Language:', language);
-
-    // Language name mapping
-    const languageNames = {
-      'en': 'English',
-      'hi': 'Hindi (हिंदी)',
-      'gu': 'Gujarati (ગુજરાતી)',
-      'mr': 'Marathi (मराठी)'
-    };
-
-    const responseLang = languageNames[language] || 'English';
 
     let analysisData = {};
 
@@ -40,8 +29,6 @@ router.post('/analyze', authMiddleware, async (req, res) => {
         const prompt = `You are an expert plant pathologist and agronomist AI specializing in Indian crops.
 Analyze this crop/plant image with precision and provide a comprehensive agricultural diagnosis.
 
-🌐 LANGUAGE: ALL values must be in ${responseLang} ONLY. JSON keys stay in English.
-
 DETAILED ANALYSIS STEPS:
 1. Identify the exact crop species (common + scientific name)
 2. Determine growth stage (seedling/vegetative/flowering/fruiting/maturity)
@@ -54,42 +41,42 @@ DETAILED ANALYSIS STEPS:
 
 Return STRICT valid JSON only (no markdown):
 {
-  "cropName": "exact common crop name in ${responseLang}",
+  "cropName": "exact common crop name",
   "scientificName": "botanical scientific name in Latin",
-  "growthStage": "specific growth stage in ${responseLang}",
+  "growthStage": "specific growth stage",
   "health": {
-    "status": "Healthy / Mildly Stressed / Diseased / Severely Diseased in ${responseLang}",
+    "status": "Healthy / Mildly Stressed / Diseased / Severely Diseased",
     "score": 75
   },
   "diseases": [
     {
-      "name": "specific disease name in ${responseLang}",
-      "severity": "Low / Medium / High in ${responseLang}",
-      "symptoms": "visible symptoms observed in ${responseLang}",
-      "treatment": "specific treatment with product names and doses in ${responseLang}"
+      "name": "specific disease name",
+      "severity": "Low / Medium / High",
+      "symptoms": "visible symptoms observed",
+      "treatment": "specific treatment with product names and doses"
     }
   ],
   "pests": [
     {
-      "name": "specific pest name in ${responseLang}",
-      "severity": "Low / Medium / High in ${responseLang}",
-      "treatment": "specific control method in ${responseLang}"
+      "name": "specific pest name",
+      "severity": "Low / Medium / High",
+      "treatment": "specific control method"
     }
   ],
   "recommendations": [
-    "priority action 1 in ${responseLang}",
-    "priority action 2 in ${responseLang}",
-    "preventive measure in ${responseLang}"
+    "priority action 1",
+    "priority action 2",
+    "preventive measure"
   ],
   "careInstructions": {
-    "watering": "specific watering schedule and method in ${responseLang}",
-    "fertilization": "NPK recommendation with timing in ${responseLang}",
-    "pruning": "pruning advice if applicable in ${responseLang}",
-    "pestControl": "integrated pest management steps in ${responseLang}"
+    "watering": "specific watering schedule and method",
+    "fertilization": "NPK recommendation with timing",
+    "pruning": "pruning advice if applicable",
+    "pestControl": "integrated pest management steps"
   },
   "harvestPrediction": {
     "estimatedDays": 45,
-    "expectedYield": "yield estimate with unit per acre/hectare in ${responseLang}"
+    "expectedYield": "yield estimate with unit per acre/hectare"
   }
 }
 
@@ -107,7 +94,7 @@ If image is NOT a plant/crop, return exactly:
         const required = ['cropName', 'health', 'recommendations', 'careInstructions'];
         if (!validateStructure(aiAnalysis, required)) {
           console.warn('[Crop] AI response missing required fields, using simulation fallback');
-          analysisData = getSimulatedCropAnalysis(language);
+          analysisData = getSimulatedCropAnalysis();
         } else {
           analysisData = aiAnalysis;
           console.log('✅ AI Analysis Successful');
@@ -116,11 +103,11 @@ If image is NOT a plant/crop, return exactly:
       } catch (aiError) {
         console.error('❌ AI Analysis failed:', aiError.message);
         console.log('⚠️ Falling back to simulation mode');
-        analysisData = getSimulatedCropAnalysis(language);
+        analysisData = getSimulatedCropAnalysis();
       }
     } else {
       console.log('⚠️ Using Fallback Mode (Simulation)');
-      analysisData = getSimulatedCropAnalysis(language);
+      analysisData = getSimulatedCropAnalysis();
     }
 
     // Save to database
@@ -206,120 +193,99 @@ router.delete('/:id', authMiddleware, async (req, res) => {
   }
 });
 
-// Helper function for simulated crop analysis
-function getSimulatedCropAnalysis(language = 'en') {
-  const translations = {
-    en: {
+// Helper function for simulated crop analysis (English only, varied scenarios)
+function getSimulatedCropAnalysis() {
+  const scenarios = [
+    {
       cropName: 'Tomato',
       scientificName: 'Solanum lycopersicum',
-      growthStage: 'Flowering stage',
-      health: { status: 'Diseased', score: 65 },
+      growthStage: 'Flowering / Early Fruiting Stage',
+      health: { status: 'Diseased', score: 58 },
       diseases: [{
-        name: 'Early Blight',
+        name: 'Early Blight (Alternaria solani)',
         severity: 'Medium',
-        treatment: 'Remove infected leaves. Apply copper fungicide or Neem oil. Use Mancozeb or Chlorothalonil every 7-10 days.'
+        symptoms: 'Concentric dark brown rings on older leaves starting from the base. Yellow halo around lesions.',
+        treatment: 'Remove infected leaves immediately. Spray Mancozeb 75WP (2g/L) or Chlorothalonil every 7-10 days. Apply at sunrise or sunset.'
       }],
       pests: [],
       recommendations: [
-        'Avoid overhead irrigation to keep foliage dry',
-        'Improve air circulation by pruning lower leaves',
-        'Apply mulch to prevent soil splash on leaves'
+        'Avoid overhead irrigation — switch to drip irrigation to keep foliage dry',
+        'Apply copper-based fungicide as preventive spray every 10-14 days during humid weather',
+        'Stake plants properly to improve air circulation and reduce blight spread'
       ],
       careInstructions: {
-        watering: 'Water deeply 2-3 times per week, avoid wetting leaves',
-        fertilization: 'Apply balanced NPK fertilizer every 2 weeks',
-        pruning: 'Remove suckers and lower leaves regularly',
-        pestControl: 'Monitor for aphids and whiteflies weekly'
+        watering: 'Irrigate at root zone only, 2-3 times per week. Avoid evening watering to prevent fungal growth.',
+        fertilization: 'Apply NPK 19:19:19 (2g/L) as foliar spray. Increase potassium (MOP 60kg/ha) at fruiting stage for quality.',
+        pruning: 'Remove suckers weekly and all lower leaves below the first fruit cluster. Improves air flow.',
+        pestControl: 'Check undersides of leaves for whiteflies weekly. Spray Imidacloprid 0.5ml/L if infestation found.'
       },
       harvestPrediction: {
-        estimatedDays: 45,
-        expectedYield: 'Medium yield expected due to disease stress'
+        estimatedDays: 40,
+        expectedYield: '20-25 tons/hectare expected if disease controlled promptly'
       }
     },
-    hi: {
-      cropName: 'टमाटर',
-      scientificName: 'Solanum lycopersicum',
-      growthStage: 'फूल आने का चरण',
-      health: { status: 'रोगग्रस्त', score: 65 },
+    {
+      cropName: 'Wheat',
+      scientificName: 'Triticum aestivum',
+      growthStage: 'Tillering Stage',
+      health: { status: 'Mildly Stressed', score: 72 },
       diseases: [{
-        name: 'अर्ली ब्लाइट',
-        severity: 'मध्यम',
-        treatment: 'संक्रमित पत्तियों को हटा दें। कॉपर फंगीसाइड या नीम का तेल लगाएं। हर 7-10 दिनों में मैनकोजेब या क्लोरोथैलोनिल का उपयोग करें।'
+        name: 'Yellow Rust (Puccinia striiformis)',
+        severity: 'Low',
+        symptoms: 'Yellow-orange stripe-like rust pustules visible on leaf surface, parallel to leaf veins.',
+        treatment: 'Spray Propiconazole 25EC (1ml/L) or Tebuconazole immediately. Repeat in 15 days if needed.'
       }],
-      pests: [],
+      pests: [{
+        name: 'Aphids (Rhopalosiphum padi)',
+        severity: 'Low',
+        treatment: 'Spray Dimethoate 30EC (2ml/L) or use Imidacloprid seed treatment for next sowing. Ladybug presence indicates natural control.'
+      }],
       recommendations: [
-        'पत्तियों को सूखा रखने के लिए ऊपर से सिंचाई से बचें',
-        'निचली पत्तियों की छंटाई करके हवा का संचार बढ़ाएं',
-        'पत्तियों पर मिट्टी के छींटे रोकने के लिए मल्च लगाएं'
+        'Apply second irrigation immediately (tillering is critical stage for wheat)',
+        'Top-dress with Urea (60 kg/ha) as second split dose to support tillering',
+        'Monitor for Yellow Rust spread — spray fungicide if disease covers >5% of leaf area'
       ],
       careInstructions: {
-        watering: 'सप्ताह में 2-3 बार गहराई से पानी दें, पत्तियों को गीला करने से बचें',
-        fertilization: 'हर 2 सप्ताह में संतुलित एनपीके उर्वरक डालें',
-        pruning: 'नियमित रूप से शाखाएं और निचली पत्तियां हटाएं',
-        pestControl: 'साप्ताहिक रूप से एफिड्स और व्हाइटफ्लाई की निगरानी करें'
+        watering: 'Irrigate at tillering (25-30 DAS), jointing (45 DAS) and heading (65 DAS) stages — critical stages.',
+        fertilization: 'Top-dress 60kg Urea/ha now. Apply third dose at boot stage. Total N: 120kg/ha.',
+        pruning: 'Not applicable for wheat.',
+        pestControl: 'Monitor aphid colonies on tillers. Spray at >100 aphids per meter row length (Economic Threshold Level).'
       },
       harvestPrediction: {
-        estimatedDays: 45,
-        expectedYield: 'रोग के तनाव के कारण मध्यम उपज की उम्मीद है'
+        estimatedDays: 75,
+        expectedYield: '45-50 quintals/hectare with timely irrigation and fertilizer management'
       }
     },
-    gu: {
-      cropName: 'ટામેટા',
-      scientificName: 'Solanum lycopersicum',
-      growthStage: 'ફૂલ આવવાનો તબક્કો',
-      health: { status: 'રોગગ્રસ્ત', score: 65 },
-      diseases: [{
-        name: 'અર્લી બ્લાઇટ',
-        severity: 'મધ્યમ',
-        treatment: 'ચેપગ્રસ્ત પાંદડા દૂર કરો. કોપર ફંગીસાઇડ અથવા લીમડાનું તેલ લગાવો. દર 7-10 દિવસે મેન્કોઝેબ અથવા ક્લોરોથેલોનિલનો ઉપયોગ કરો.'
+    {
+      cropName: 'Cotton',
+      scientificName: 'Gossypium hirsutum',
+      growthStage: 'Boll Development Stage',
+      health: { status: 'Healthy', score: 82 },
+      diseases: [],
+      pests: [{
+        name: 'Bollworm (Helicoverpa armigera)',
+        severity: 'Low',
+        treatment: 'Deploy pheromone traps (5 per acre) for monitoring. If >6 moths/trap/week, spray Chlorantraniliprole 18.5SC (0.3ml/L). Use Bt spray (Bacillus thuringiensis) organically.'
       }],
-      pests: [],
       recommendations: [
-        'પાંદડાને સૂકા રાખવા માટે ઉપરથી સિંચાઈ ટાળો',
-        'નીચેના પાંદડા કાપીને હવાનું પરિભ્રમણ સુધારો',
-        'પાંદડા પર માટીના છાંટા રોકવા માટે મલ્ચ લગાવો'
+        'Apply potassium (MOP 50 kg/ha) now to improve boll weight and fiber quality',
+        'Maintain pheromone traps for bollworm monitoring throughout boll development',
+        'Avoid applying any hormone sprays at this stage to prevent boll shedding'
       ],
       careInstructions: {
-        watering: 'અઠવાડિયામાં 2-3 વખત ઊંડે પાણી આપો, પાંદડા ભીના કરવાનું ટાળો',
-        fertilization: 'દર 2 અઠવાડિયે સંતુલિત એનપીકે ખાતર નાખો',
-        pruning: 'નિયમિતપણે શાખાઓ અને નીચેના પાંદડા દૂર કરો',
-        pestControl: 'સાપ્તાહિક એફિડ્સ અને વ્હાઇટફ્લાયનું નિરીક્ષણ કરો'
+        watering: 'Critical irrigation at boll development. Water every 10-12 days. Avoid waterlogging — reduces boll retention.',
+        fertilization: 'Apply potassium sulfate (SOP) 50-60 kg/ha as foliar or soil application for quality improvement.',
+        pruning: 'Remove damaged and pest-affected bolls. Top the plant if height exceeds 120cm to direct energy to bolls.',
+        pestControl: 'For sucking pests (Aphids, Jassids), spray Imidacloprid 70WG (0.3g/L) at economic threshold. Use yellow sticky traps.'
       },
       harvestPrediction: {
-        estimatedDays: 45,
-        expectedYield: 'રોગના તણાવને કારણે મધ્યમ ઉપજની અપેક્ષા છે'
-      }
-    },
-    mr: {
-      cropName: 'टोमॅटो',
-      scientificName: 'Solanum lycopersicum',
-      growthStage: 'फुलांचा टप्पा',
-      health: { status: 'रोगग्रस्त', score: 65 },
-      diseases: [{
-        name: 'अर्ली ब्लाइट',
-        severity: 'मध्यम',
-        treatment: 'संक्रमित पाने काढून टाका. कॉपर बुरशीनाशक किंवा कडुलिंबाचे तेल लावा. दर 7-10 दिवसांनी मॅनकोझेब किंवा क्लोरोथॅलोनिलचा वापर करा.'
-      }],
-      pests: [],
-      recommendations: [
-        'पाने कोरडी ठेवण्यासाठी वरून सिंचन टाळा',
-        'खालची पाने छाटून हवेचे संचलन सुधारा',
-        'पानांवर मातीचे शिडकाव रोखण्यासाठी मल्च लावा'
-      ],
-      careInstructions: {
-        watering: 'आठवड्यातून 2-3 वेळा खोलवर पाणी द्या, पाने ओली करणे टाळा',
-        fertilization: 'दर 2 आठवड्यांनी संतुलित एनपीके खत घाला',
-        pruning: 'नियमितपणे फांद्या आणि खालची पाने काढा',
-        pestControl: 'साप्ताहिक एफिड्स आणि व्हाइटफ्लायचे निरीक्षण करा'
-      },
-      harvestPrediction: {
-        estimatedDays: 45,
-        expectedYield: 'रोगाच्या तणावामुळे मध्यम उत्पन्नाची अपेक्षा आहे'
+        estimatedDays: 55,
+        expectedYield: '18-22 quintals/hectare seed cotton with good pest management'
       }
     }
-  };
+  ];
 
-  return translations[language] || translations['en'];
+  return scenarios[Math.floor(Math.random() * scenarios.length)];
 }
 
 module.exports = router;

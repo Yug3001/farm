@@ -14,21 +14,11 @@ const queryClassifier = new QueryClassifier();
 // Get farming advice
 router.post('/ask', authMiddleware, async (req, res) => {
   try {
-    const { question, sessionId, language = 'en' } = req.body;
+    const { question, sessionId } = req.body;
 
     if (!question) {
       return res.status(400).json({ error: 'Question is required' });
     }
-
-    // Language name mapping
-    const languageNames = {
-      'en': 'English',
-      'hi': 'Hindi (हिंदी)',
-      'gu': 'Gujarati (ગુજરાતી)',
-      'mr': 'Marathi (मराठी)'
-    };
-
-    const responseLang = languageNames[language] || 'English';
 
     // Define the knowledge base function
     function getKnowledgeBase() {
@@ -208,9 +198,8 @@ router.post('/ask', authMiddleware, async (req, res) => {
     const lowerQuestion = question.toLowerCase();
     const kbResponses = getKnowledgeBase();
 
-    // ROUTE 1: Simple queries in ENGLISH with high confidence → Knowledge Base (saves API calls)
-    // For non-English languages, always use Gemini so response is in the selected language
-    if (language === 'en' && classification.type === 'simple' && classification.confidence >= 0.7) {
+    // ROUTE 1: Simple queries → Knowledge Base (saves API calls)
+    if (classification.type === 'simple' && classification.confidence >= 0.7) {
       let bestMatch = null;
       let maxLen = 0;
       for (const key in kbResponses) {
@@ -246,11 +235,14 @@ router.post('/ask', authMiddleware, async (req, res) => {
     if (process.env.GEMINI_API_KEY) {
       try {
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
+        // Try models in order: 2.0-flash → 2.0-flash-lite → 1.5-flash → pro
+        const MODELS = ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash', 'gemini-pro'];
+        let aiAnswer = null;
 
-        const prompt = `You are FarmWise, an expert Indian Agricultural Advisor AI. Answer the farmer's question with practical, specific advice for Indian farming.
-
-🌐 LANGUAGE: Respond ONLY in ${responseLang}. Use native script for Hindi/Gujarati/Marathi.
+        for (const modelName of MODELS) {
+          try {
+            const model = genAI.getGenerativeModel({ model: modelName });
+            const prompt = `You are FarmWise, an expert Indian Agricultural Advisor AI. Answer the farmer's question with practical, specific advice for Indian farming.
 
 📋 RESPONSE FORMAT (150-200 words):
 - Quick Answer: 1-2 sentence direct solution
@@ -262,28 +254,38 @@ Topics you cover: crops (Kharif/Rabi/Zaid), soil science, NPK nutrients, pest/di
 
 Farmer's Question: "${question}"
 
-Respond in ${responseLang} with expert, practical advice:`
+Respond in English with expert, practical advice:`;
+            const result = await model.generateContent(prompt);
+            aiAnswer = result.response.text().trim();
+            if (aiAnswer) { console.log(`✅ AI advisor success with ${modelName}`); break; }
+          } catch (modelErr) {
+            const status = modelErr.status || 0;
+            const msg = modelErr.message || '';
+            if (status === 429 || msg.includes('quota') || msg.includes('RESOURCE_EXHAUSTED')) {
+              console.error(`❌ Quota exhausted for ${modelName}, using Knowledge Base fallback`);
+              break; // quota exhausted — skip all models
+            }
+            console.warn(`⚠️ Model ${modelName} failed (${status}), trying next...`);
+          }
+        }
 
+        if (aiAnswer) {
+          // Track usage in MongoDB (fire-and-forget)
+          User.findById(req.user._id)
+            .then(u => u?.trackUsage('advisor'))
+            .catch(err => console.warn('[DB] trackUsage failed:', err.message));
 
-        const result = await model.generateContent(prompt);
-        const response = result.response;
-        const aiAnswer = response.text().trim();
+          // Save to chat history
+          await saveChatMessage(req.user._id, sessionId, question, aiAnswer);
 
-        // Track usage in MongoDB (fire-and-forget)
-        User.findById(req.user._id)
-          .then(u => u?.trackUsage('advisor'))
-          .catch(err => console.warn('[DB] trackUsage failed:', err.message));
-
-        // Save to chat history
-        await saveChatMessage(req.user._id, sessionId, question, aiAnswer);
-
-        return res.json({
-          question,
-          answer: aiAnswer,
-          timestamp: new Date(),
-          userId: req.user._id,
-          source: 'AI'
-        });
+          return res.json({
+            question,
+            answer: aiAnswer,
+            timestamp: new Date(),
+            userId: req.user._id,
+            source: 'AI'
+          });
+        }
 
       } catch (aiError) {
         console.error("AI Advisor failed:", aiError);

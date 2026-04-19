@@ -1,10 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { useLanguage } from '../contexts/LanguageContext';
-import LanguageSelector from './LanguageSelector';
 
 const AdvisorBot3D = ({ isDarkMode = false }) => {
-  const { selectedLanguage } = useLanguage();
   const [messages, setMessages] = useState([
     { id: 1, text: "🌱 Namaste! I'm FarmWise AI, your personal agricultural advisor. Ask me anything about crops, soil, pests, irrigation, or government schemes!", sender: 'bot', source: null }
   ]);
@@ -16,16 +13,6 @@ const AdvisorBot3D = ({ isDarkMode = false }) => {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
-
-  // Reset messages when language changes so user gets a fresh session
-  useEffect(() => {
-    const langLabels = { en: 'English', hi: 'हिंदी', gu: 'ગુજરાતી', mr: 'मराठी' };
-    setMessages([{
-      id: 1,
-      text: `🌱 Language changed to ${langLabels[selectedLanguage] || 'English'}. Ask me anything about farming!`,
-      sender: 'bot'
-    }]);
-  }, [selectedLanguage]);
 
   const handleSubmit = async () => {
     if (!input.trim() || loading) return;
@@ -47,7 +34,6 @@ const AdvisorBot3D = ({ isDarkMode = false }) => {
       const response = await axios.post('http://localhost:5000/api/advisor/ask', {
         question: userText,
         sessionId,
-        language: selectedLanguage   // ← sends chosen language to backend
       }, {
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
       });
@@ -59,7 +45,6 @@ const AdvisorBot3D = ({ isDarkMode = false }) => {
         source: response.data.source || null
       };
       setMessages(prev => [...prev, botMessage]);
-      // ✅ NO auto-speak — removed intentionally
 
     } catch (error) {
       let errorText = "⚠️ Connection issue. Please check your network and try again.";
@@ -75,12 +60,14 @@ const AdvisorBot3D = ({ isDarkMode = false }) => {
   };
 
   const quickQuestions = [
-    { label: '🌾 NPK Fertilizer', q: 'What is NPK fertilizer and how to use it?' },
-    { label: '🐛 Pest Control',   q: 'How to control aphids organically?' },
-    { label: '💧 Drip Irrigation', q: 'Benefits of drip irrigation for wheat' },
-    { label: '🏛️ PM Kisan',       q: 'What is PM Kisan scheme and eligibility?' },
-    { label: '🌱 Soil Health',    q: 'How to improve soil fertility naturally?' },
-    { label: '🌧️ Kharif Crops',  q: 'Best kharif crops to grow this season' },
+    { label: '🌾 NPK Fertilizer',   q: 'What is NPK fertilizer and how to use it?' },
+    { label: '🐛 Pest Control',      q: 'How to control aphids organically?' },
+    { label: '💧 Drip Irrigation',   q: 'Benefits of drip irrigation for wheat' },
+    { label: '🏛️ PM Kisan',          q: 'What is PM Kisan scheme and eligibility?' },
+    { label: '🌱 Soil Health',       q: 'How to improve soil fertility naturally?' },
+    { label: '🌧️ Kharif Crops',     q: 'Best kharif crops to grow this season' },
+    { label: '🧪 Soil Testing',      q: 'How to do soil testing for my farm?' },
+    { label: '🌿 Organic Farming',   q: 'How to start organic farming in India?' },
   ];
 
   const formatText = (text) => {
@@ -141,7 +128,6 @@ const AdvisorBot3D = ({ isDarkMode = false }) => {
               </div>
             </div>
           </div>
-          <LanguageSelector />
         </div>
 
         {/* Quick Questions */}
@@ -160,7 +146,7 @@ const AdvisorBot3D = ({ isDarkMode = false }) => {
         <div style={{ background:panelBg, backdropFilter:'blur(20px)', border:panelBorder, borderRadius:24, overflow:'hidden', boxShadow: isDarkMode ? '0 32px 64px rgba(0,0,0,0.4)' : '0 8px 32px rgba(34,197,94,0.12)', transition:'all 0.3s' }}>
 
           {/* Messages */}
-          <div style={{ padding:'20px', minHeight:360, maxHeight:460, overflowY:'auto', display:'flex', flexDirection:'column', gap:14 }}>
+          <div style={{ padding:'20px', minHeight:360, maxHeight:480, overflowY:'auto', display:'flex', flexDirection:'column', gap:14 }}>
             {messages.map(msg => (
               <div key={msg.id} style={{ display:'flex', alignItems:'flex-end', gap:8, justifyContent: msg.sender==='user' ? 'flex-end' : 'flex-start' }}>
                 {msg.sender === 'bot' && (
@@ -189,6 +175,9 @@ const AdvisorBot3D = ({ isDarkMode = false }) => {
                     </div>
                   )}
                 </div>
+                {msg.sender === 'user' && (
+                  <div style={{ width:32, height:32, borderRadius:10, background:'linear-gradient(135deg,#16a34a,#22c55e)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, flexShrink:0 }}>👨‍🌾</div>
+                )}
               </div>
             ))}
             {/* Typing indicator */}
@@ -239,7 +228,7 @@ const AdvisorBot3D = ({ isDarkMode = false }) => {
 
         {/* Stats Row */}
         <div style={{ display:'flex', gap:10, justifyContent:'center', flexWrap:'wrap' }}>
-          {[{icon:'🧠',label:'Gemini AI Powered'},{icon:'📚',label:'200+ Crop Topics'},{icon:'🌐',label:'4 Languages'},{icon:'🔒',label:'Secure & Private'}].map((item,i) => (
+          {[{icon:'🧠',label:'Gemini AI Powered'},{icon:'📚',label:'200+ Crop Topics'},{icon:'⚡',label:'Instant Responses'},{icon:'🔒',label:'Secure & Private'}].map((item,i) => (
             <div key={i} style={{ display:'flex', alignItems:'center', gap:7, padding:'7px 14px', borderRadius:20, background:statsBg, border:statsBorder, color:statsColor, fontSize:'0.78rem', fontWeight:600, transition:'all 0.3s' }}>
               <span>{item.icon}</span><span>{item.label}</span>
             </div>
