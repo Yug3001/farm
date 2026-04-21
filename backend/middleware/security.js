@@ -12,23 +12,20 @@ const helmetConfig = helmet({
             styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
             fontSrc: ["'self'", "https://fonts.gstatic.com"],
             imgSrc: ["'self'", "data:", "blob:"],
-            connectSrc: ["'self'", "http://localhost:5000", "https://generativelanguage.googleapis.com"],
+            // Allow LAN back-end calls (phone opens via 192.168.x.x)
+            connectSrc: ["'self'", "http://localhost:5000", "http://*:5000"],
             frameSrc: ["'none'"],
             objectSrc: ["'none'"],
-            upgradeInsecureRequests: [],
         },
     },
-    crossOriginEmbedderPolicy: false, // Keep false for broad browser compat
+    crossOriginEmbedderPolicy: false,
     xssFilter: true,
     noSniff: true,
-    frameguard: { action: 'deny' }, // Prevent clickjacking in iframes
-    hsts: {
-        maxAge: 31536000,       // 1 year
-        includeSubDomains: true,
-        preload: true,
-    },
+    frameguard: { action: 'deny' },
+    // ⚠️ HSTS disabled — only safe on HTTPS; breaks plain HTTP LAN access from phones
+    hsts: false,
     referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
-    hidePoweredBy: true,      // Remove X-Powered-By: Express header
+    hidePoweredBy: true,
 });
 
 // ─── 2. MONGO SANITIZE: Prevent NoSQL injection attacks ────────────────────────
@@ -87,7 +84,8 @@ const extraHeaders = (req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('X-XSS-Protection', '1; mode=block');
-    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+    // Allow camera + microphone so phones can use file pickers / camera capture
+    res.setHeader('Permissions-Policy', 'camera=(self), microphone=(self), geolocation=()');
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     res.setHeader('Pragma', 'no-cache');
     next();

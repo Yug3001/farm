@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import './SignIn.css';
+import { API_BASE_URL } from '../config/api';
 
 const SignIn = ({ onSuccess }) => {
   const [formData, setFormData] = useState({ email: '', password: '' });
@@ -37,7 +38,7 @@ const SignIn = ({ onSuccess }) => {
 
     setLoading(true);
     try {
-      const response = await axios.post('http://localhost:5000/api/auth/signin', {
+      const response = await axios.post(`${API_BASE_URL}/api/auth/signin`, {
         email: formData.email.trim().toLowerCase(),
         password: formData.password,
       });
@@ -69,7 +70,7 @@ const SignIn = ({ onSuccess }) => {
       } else if (err.response?.status === 429) {
         setError('⏱️ Too many attempts. Please wait 15 minutes and try again.');
       } else if (!err.response) {
-        setError('🌐 Cannot connect to server. Make sure the backend is running on port 5000.');
+        setError('🌐 Cannot connect to server. Make sure the backend is running and you are on the same WiFi network.');
       } else {
         setError(msg || 'Sign in failed. Please try again.');
       }

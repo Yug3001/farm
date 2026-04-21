@@ -13,6 +13,7 @@ import Reminders, { OverdueBell } from './components/Reminders';
 import XMLNavigation from './components/XMLNavigation';
 import './App.css';
 import './responsive.css';
+import { API_BASE_URL } from './config/api';
 
 // Dashboard Layout Component
 const DashboardLayout = ({ onLogout, isDarkMode, toggleTheme }) => {
@@ -137,7 +138,7 @@ function App() {
       if (token) {
         // Invalidate the token server-side (increments tokenVersion)
         // This ensures even copied tokens are immediately rejected
-        await fetch('http://localhost:5000/api/auth/signout', {
+        await fetch(`${API_BASE_URL}/api/auth/signout`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,

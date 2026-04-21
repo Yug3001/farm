@@ -3,112 +3,17 @@ const router = express.Router();
 const CropAnalysis = require('../models/CropAnalysis');
 const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
-const { generateWithRetry, parseGeminiJson, validateStructure } = require('../utils/aiHelper');
 
 // Analyze crop disease
 router.post('/analyze', authMiddleware, async (req, res) => {
   try {
     const { imageData, location, notes } = req.body;
 
-    // Debug logging
-    console.log('🌿 Crop Analysis Request Received');
-    console.log('API Key Present:', !!process.env.GEMINI_API_KEY);
-    console.log('Image Data Present:', !!imageData);
-    console.log('Image Data Valid:', imageData && imageData.startsWith('data:image'));
+    // AI offline — always use rich simulation mode
+    console.log('⚠️ AI offline — using simulation mode (rich local data)');
+    const analysisData = getSimulatedCropAnalysis();
 
-    let analysisData = {};
 
-    // Use Gemini if Key is available
-    if (process.env.GEMINI_API_KEY && imageData && imageData.startsWith('data:image')) {
-      console.log('✅ Using AI Analysis (Gemini)');
-      try {
-        const base64Data = imageData.split(',')[1];
-        const mimeType = imageData.split(';')[0].split(':')[1];
-        const imagePart = { inlineData: { data: base64Data, mimeType } };
-
-        const prompt = `You are an expert plant pathologist and agronomist AI specializing in Indian crops.
-Analyze this crop/plant image with precision and provide a comprehensive agricultural diagnosis.
-
-DETAILED ANALYSIS STEPS:
-1. Identify the exact crop species (common + scientific name)
-2. Determine growth stage (seedling/vegetative/flowering/fruiting/maturity)
-3. Assess overall plant health (check leaf color, texture, spots, wilting, deformities)
-4. Diagnose any diseases — look for: spots, lesions, rust, mold, wilting patterns
-5. Identify pests — look for: holes, webs, sticky residue, insect bodies
-6. Rate health score 0-100 based on observed symptoms
-7. Provide evidence-based treatment recommendations
-8. Estimate harvest timeline based on growth stage
-
-Return STRICT valid JSON only (no markdown):
-{
-  "cropName": "exact common crop name",
-  "scientificName": "botanical scientific name in Latin",
-  "growthStage": "specific growth stage",
-  "health": {
-    "status": "Healthy / Mildly Stressed / Diseased / Severely Diseased",
-    "score": 75
-  },
-  "diseases": [
-    {
-      "name": "specific disease name",
-      "severity": "Low / Medium / High",
-      "symptoms": "visible symptoms observed",
-      "treatment": "specific treatment with product names and doses"
-    }
-  ],
-  "pests": [
-    {
-      "name": "specific pest name",
-      "severity": "Low / Medium / High",
-      "treatment": "specific control method"
-    }
-  ],
-  "recommendations": [
-    "priority action 1",
-    "priority action 2",
-    "preventive measure"
-  ],
-  "careInstructions": {
-    "watering": "specific watering schedule and method",
-    "fertilization": "NPK recommendation with timing",
-    "pruning": "pruning advice if applicable",
-    "pestControl": "integrated pest management steps"
-  },
-  "harvestPrediction": {
-    "estimatedDays": 45,
-    "expectedYield": "yield estimate with unit per acre/hectare"
-  }
-}
-
-If image is NOT a plant/crop, return exactly:
-{ "error": "Invalid image: Please upload a clear photo of a crop or plant." }`;
-
-        const rawText = await generateWithRetry(prompt, [imagePart]);
-        const aiAnalysis = parseGeminiJson(rawText);
-
-        if (aiAnalysis.error) {
-          return res.json({ success: false, error: aiAnalysis.error });
-        }
-
-        // Validate key fields
-        const required = ['cropName', 'health', 'recommendations', 'careInstructions'];
-        if (!validateStructure(aiAnalysis, required)) {
-          console.warn('[Crop] AI response missing required fields, using simulation fallback');
-          analysisData = getSimulatedCropAnalysis();
-        } else {
-          analysisData = aiAnalysis;
-          console.log('✅ AI Analysis Successful');
-        }
-
-      } catch (aiError) {
-        console.error('❌ AI Analysis failed:', aiError.message);
-        console.log('⚠️ Falling back to simulation mode');
-        analysisData = getSimulatedCropAnalysis();
-      }
-    } else {
-      console.log('⚠️ Using Fallback Mode (Simulation)');
-      analysisData = getSimulatedCropAnalysis();
-    }
 
     // Save to database
     const cropAnalysis = new CropAnalysis({

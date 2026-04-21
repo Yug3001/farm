@@ -3,93 +3,16 @@ const router = express.Router();
 const SoilAnalysis = require('../models/SoilAnalysis');
 const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
-const { generateWithRetry, parseGeminiJson, validateStructure } = require('../utils/aiHelper');
 
 // Analyze soil sample
 router.post('/analyze', authMiddleware, async (req, res) => {
   try {
     const { imageData, location, notes } = req.body;
 
-    // Debug logging
-    console.log('🔍 Soil Analysis Request Received');
-    console.log('API Key Present:', !!process.env.GEMINI_API_KEY);
-    console.log('Image Data Present:', !!imageData);
-    console.log('Image Data Valid:', imageData && imageData.startsWith('data:image'));
+    // AI offline — always use rich simulation mode
+    console.log('⚠️ AI offline — using simulation mode (rich local data)');
+    const analysisData = getSimulatedAnalysis();
 
-    let analysisData = {};
-
-    // Use Gemini AI if Key is available and valid image data provided
-    if (process.env.GEMINI_API_KEY && imageData && imageData.startsWith('data:image')) {
-      console.log('✅ Using AI Analysis (Gemini)');
-
-      try {
-        const base64Data = imageData.split(',')[1];
-        const mimeType = imageData.split(';')[0].split(':')[1];
-
-        const imagePart = {
-          inlineData: { data: base64Data, mimeType }
-        };
-
-        const prompt = `You are an expert soil scientist AI specializing in Indian agriculture.
-Carefully analyze this soil image and provide a precise agricultural assessment.
-
-ANALYSIS INSTRUCTIONS:
-1. Examine soil color carefully (dark = organic, red = iron, pale = low fertility)
-2. Estimate texture from visual cues (clay = smooth/sticky, sandy = grainy, loam = balanced)
-3. Assess moisture from color saturation and surface appearance
-4. Estimate organic matter from darkness/richness
-5. Derive pH range from color and likely soil type
-6. Recommend NPK levels based on soil type and appearance
-7. Suggest region-appropriate Indian crops for this soil type
-8. Give practical, actionable improvement steps
-
-Return STRICT valid JSON only (no markdown, no prose):
-{
-  "soilType": "specific soil type name",
-  "texture": "detailed texture description",
-  "color": "specific color description (Munsell-style if possible)",
-  "moisture": "moisture level estimate with percentage",
-  "organicMatter": "organic matter level with percentage",
-  "ph": { "value": "estimated pH value like 6.5", "category": "acidic/neutral/alkaline" },
-  "nutrients": {
-    "nitrogen": "level (Low/Medium/High) with ppm estimate",
-    "phosphorus": "level (Low/Medium/High) with ppm estimate",
-    "potassium": "level (Low/Medium/High) with ppm estimate"
-  },
-  "recommendations": ["specific recommendation 1", "specific recommendation 2", "specific recommendation 3"],
-  "suitableCrops": ["crop 1", "crop 2", "crop 3", "crop 4"],
-  "improvements": ["specific improvement 1 with dosage", "specific improvement 2", "specific improvement 3"]
-}
-
-If the image is clearly NOT soil (e.g. a person, food, object), return:
-{ "error": "Invalid image: not a soil sample. Please upload a clear photo of soil." }`;
-
-        const rawText = await generateWithRetry(prompt, [imagePart]);
-        const aiAnalysis = parseGeminiJson(rawText);
-
-        if (aiAnalysis.error) {
-          return res.json({ success: false, error: aiAnalysis.error });
-        }
-
-        // Validate required fields
-        const required = ['soilType', 'texture', 'ph', 'nutrients', 'recommendations', 'suitableCrops'];
-        if (!validateStructure(aiAnalysis, required)) {
-          console.warn('[Soil] AI response missing required fields, using simulation fallback');
-          analysisData = getSimulatedAnalysis();
-        } else {
-          analysisData = aiAnalysis;
-          console.log('✅ AI Analysis Successful');
-        }
-
-      } catch (aiError) {
-        console.error('❌ AI Analysis failed:', aiError.message);
-        console.log('⚠️ Falling back to simulation mode');
-        analysisData = getSimulatedAnalysis();
-      }
-    } else {
-      console.log('⚠️ Using Fallback Mode (Simulation)');
-      analysisData = getSimulatedAnalysis();
-    }
 
     // Save to database
     const soilAnalysis = new SoilAnalysis({

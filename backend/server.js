@@ -31,21 +31,31 @@ app.use(helmetConfig);
 // 2. Extra headers not covered by Helmet
 app.use(extraHeaders);
 
-// 3. CORS — allow only our own frontend origin
-const allowedOrigins = [
-  'http://localhost:3000',
-  'http://127.0.0.1:3000',
-  'http://localhost:3001',
-  'http://localhost:5173', // Vite dev server
-  'http://127.0.0.1:5173',
-  // Production URL from env (if set)
-  ...(process.env.VITE_API_BASE_URL ? [process.env.VITE_API_BASE_URL.replace('/api', '').replace(':5000', ':3000')] : []),
-];
+// ─── 3. CORS ─────────────────────────────────────────────────────────────────
+// Allow localhost (dev), Vite dev server, AND any device on the same LAN
+// (phones/tablets connecting via the laptop's WiFi IP e.g. 192.168.x.x)
+const isLanOrigin = (origin) => {
+  if (!origin) return true; // server-to-server, curl, same-origin etc.
+  try {
+    const url = new URL(origin);
+    const hostname = url.hostname;
+    // localhost / 127.x
+    if (hostname === 'localhost' || hostname.startsWith('127.')) return true;
+    // Class A private: 10.x.x.x
+    if (hostname.startsWith('10.')) return true;
+    // Class B private: 172.16.x.x – 172.31.x.x
+    if (/^172\.(1[6-9]|2[0-9]|3[01])\./.test(hostname)) return true;
+    // Class C private: 192.168.x.x
+    if (hostname.startsWith('192.168.')) return true;
+    return false;
+  } catch {
+    return false;
+  }
+};
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow server-to-server calls (no origin) and listed origins
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (isLanOrigin(origin)) {
       callback(null, true);
     } else {
       console.warn(`[SECURITY] CORS blocked request from origin: ${origin}`);
@@ -55,7 +65,7 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
-  maxAge: 86400, // Cache preflight for 24 h
+  maxAge: 86400,
 }));
 
 // 4. Body size guard (before JSON parsing)
@@ -120,9 +130,21 @@ app.use((err, req, res, next) => {
 // ══════════════════════════════════════════════════════════════════
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+// Bind to 0.0.0.0 so the server is reachable from phones/tablets on the same WiFi
+app.listen(PORT, '0.0.0.0', () => {
+  const os = require('os');
+  const nets = os.networkInterfaces();
+  let lanIp = 'unknown';
+  for (const iface of Object.values(nets)) {
+    for (const net of iface) {
+      if (net.family === 'IPv4' && !net.internal) { lanIp = net.address; break; }
+    }
+    if (lanIp !== 'unknown') break;
+  }
   console.log(`✅ FarmWise Backend running on port ${PORT}`);
-  console.log(`🔒 Security middleware: Helmet, CORS, Sanitization, HPP, Rate Limiting active`);
+  console.log(`🌐 Access from this device : http://localhost:${PORT}`);
+  console.log(`📱 Access from phone/tablet: http://${lanIp}:${PORT}`);
+  console.log(`🔒 Security middleware: Helmet, CORS (LAN-open), Sanitization, HPP, Rate Limiting active`);
 });
 
 module.exports = app;

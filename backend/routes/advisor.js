@@ -6,7 +6,7 @@ const authMiddleware = require('../middleware/auth');
 const QueryClassifier = require('../utils/queryClassifier');
 
 
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+
 
 // Initialize query classifier for hybrid AI approach
 const queryClassifier = new QueryClassifier();
@@ -225,75 +225,12 @@ router.post('/ask', authMiddleware, async (req, res) => {
           apiCallSaved: true
         });
       }
-      // KB miss — fall through to Gemini AI
+      // KB miss — fall through to Local DB
     }
 
-    // ROUTE 2: Complex queries → Use Gemini AI
-    console.log('🤖 Using Gemini AI for complex query');
+    // ROUTE 2: Complex queries — use Local DB (AI offline)
+    console.log('📚 Using Local Knowledge Base for complex query (AI offline)');
 
-    // AI INTEGRATION: Use Gemini if key exists
-    if (process.env.GEMINI_API_KEY) {
-      try {
-        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        // Try models in order: 2.0-flash → 2.0-flash-lite → 1.5-flash → pro
-        const MODELS = ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash', 'gemini-pro'];
-        let aiAnswer = null;
-
-        for (const modelName of MODELS) {
-          try {
-            const model = genAI.getGenerativeModel({ model: modelName });
-            const prompt = `You are FarmWise, an expert Indian Agricultural Advisor AI. Answer the farmer's question with practical, specific advice for Indian farming.
-
-📋 RESPONSE FORMAT (150-200 words):
-- Quick Answer: 1-2 sentence direct solution
-- Key Details: specific doses, timings, product names, varieties
-- Practical Tips: 2-3 actionable points
-- Next Step: what to do/monitor next
-
-Topics you cover: crops (Kharif/Rabi/Zaid), soil science, NPK nutrients, pest/disease control (IPM), irrigation, organic farming, government schemes (PM-KISAN, PMFBY, KCC, PMKSY, MSP), market prices.
-
-Farmer's Question: "${question}"
-
-Respond in English with expert, practical advice:`;
-            const result = await model.generateContent(prompt);
-            aiAnswer = result.response.text().trim();
-            if (aiAnswer) { console.log(`✅ AI advisor success with ${modelName}`); break; }
-          } catch (modelErr) {
-            const status = modelErr.status || 0;
-            const msg = modelErr.message || '';
-            if (status === 429 || msg.includes('quota') || msg.includes('RESOURCE_EXHAUSTED')) {
-              console.error(`❌ Quota exhausted for ${modelName}, using Knowledge Base fallback`);
-              break; // quota exhausted — skip all models
-            }
-            console.warn(`⚠️ Model ${modelName} failed (${status}), trying next...`);
-          }
-        }
-
-        if (aiAnswer) {
-          // Track usage in MongoDB (fire-and-forget)
-          User.findById(req.user._id)
-            .then(u => u?.trackUsage('advisor'))
-            .catch(err => console.warn('[DB] trackUsage failed:', err.message));
-
-          // Save to chat history
-          await saveChatMessage(req.user._id, sessionId, question, aiAnswer);
-
-          return res.json({
-            question,
-            answer: aiAnswer,
-            timestamp: new Date(),
-            userId: req.user._id,
-            source: 'AI'
-          });
-        }
-
-      } catch (aiError) {
-        console.error("AI Advisor failed:", aiError);
-        // Fallback to local database logic below
-      }
-    }
-
-    // FALLBACK: Comprehensive Agriculture Knowledge Base
     const responses = {
       // --- MAJOR CROPS (Detailed) ---
       'rice': 'Rice (Oryza sativa) requires standing water during growth. Best sown in Kharif season (June-July). Use SRI (System of Rice Intensification) method to save 30-40% water. Transplant 8-12 day old seedlings at 25x25cm spacing. Apply Nitrogen in 3 splits: basal, tillering, panicle initiation. Watch for Blast disease (brown spots on leaves) and Stem borer (dead hearts). Harvest when 80% grains turn golden yellow. Popular varieties: Swarna, IR-64, Pusa Basmati.',
