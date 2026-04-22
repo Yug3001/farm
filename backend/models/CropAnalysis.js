@@ -21,11 +21,13 @@ const cropAnalysisSchema = new mongoose.Schema({
         diseases: [{
             name: String,
             severity: String,
+            symptoms: String,
             treatment: String
         }],
         pests: [{
             name: String,
             severity: String,
+            symptoms: String,
             treatment: String
         }],
         recommendations: [String],

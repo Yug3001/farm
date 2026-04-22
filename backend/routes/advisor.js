@@ -3,13 +3,6 @@ const router = express.Router();
 const ChatHistory = require('../models/ChatHistory');
 const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
-const QueryClassifier = require('../utils/queryClassifier');
-
-
-
-
-// Initialize query classifier for hybrid AI approach
-const queryClassifier = new QueryClassifier();
 
 // Get farming advice
 router.post('/ask', authMiddleware, async (req, res) => {
@@ -186,50 +179,35 @@ router.post('/ask', authMiddleware, async (req, res) => {
       };
     }
 
-    // 🎯 HYBRID AI: Classify query
-    const classification = queryClassifier.classify(question);
-    console.log(`📊 Query Classification:`, {
-      question: question.substring(0, 50) + '...',
-      type: classification.type,
-      confidence: classification.confidence,
-      reason: classification.reason
-    });
-
     const lowerQuestion = question.toLowerCase();
     const kbResponses = getKnowledgeBase();
 
-    // ROUTE 1: Simple queries → Knowledge Base (saves API calls)
-    if (classification.type === 'simple' && classification.confidence >= 0.7) {
-      let bestMatch = null;
-      let maxLen = 0;
-      for (const key in kbResponses) {
-        if (lowerQuestion.includes(key) && key.length > maxLen) {
-          maxLen = key.length;
-          bestMatch = kbResponses[key];
-        }
+    // ── ROUTE 1: Match against primary knowledge base ──────────────────────
+    let bestMatch = null;
+    let maxLen = 0;
+    for (const key in kbResponses) {
+      if (lowerQuestion.includes(key) && key.length > maxLen) {
+        maxLen = key.length;
+        bestMatch = kbResponses[key];
       }
-      if (bestMatch) {
-        console.log('✅ Using Knowledge Base (English) - API call saved!');
-        // Track usage in MongoDB (fire-and-forget — don't block response)
-        User.findById(req.user._id)
-          .then(u => u?.trackUsage('advisor'))
-          .catch(err => console.warn('[DB] trackUsage failed:', err.message));
-
-        await saveChatMessage(req.user._id, sessionId, question, bestMatch);
-        return res.json({
-          question,
-          answer: bestMatch,
-          timestamp: new Date(),
-          userId: req.user._id,
-          source: 'Knowledge Base',
-          apiCallSaved: true
-        });
-      }
-      // KB miss — fall through to Local DB
     }
 
-    // ROUTE 2: Complex queries — use Local DB (AI offline)
-    console.log('📚 Using Local Knowledge Base for complex query (AI offline)');
+    if (bestMatch) {
+      console.log('✅ Matched primary knowledge base');
+      User.findById(req.user._id)
+        .then(u => u?.trackUsage('advisor'))
+        .catch(err => console.warn('[DB] trackUsage failed:', err.message));
+      await saveChatMessage(req.user._id, sessionId, question, bestMatch);
+      return res.json({
+        question,
+        answer: bestMatch,
+        timestamp: new Date(),
+        userId: req.user._id
+      });
+    }
+
+    // ── ROUTE 2: Extended local knowledge base ─────────────────────────────
+    console.log('📚 Falling through to extended knowledge base');
 
     const responses = {
       // --- MAJOR CROPS (Detailed) ---
@@ -306,47 +284,53 @@ router.post('/ask', authMiddleware, async (req, res) => {
       'integrated pest management': 'IPM (Integrated Pest Management): Holistic approach using multiple tactics. Cultural: Crop rotation, resistant varieties, timely sowing. Mechanical: Handpicking, traps, barriers. Biological: Natural enemies, biopesticides (NPV, Bt, Trichoderma). Chemical: Last resort, use judiciously. Monitor pest levels, spray only when Economic Threshold Level (ETL) exceeded. Reduces pesticide use by 30-50%.'
     };
 
-    // Logic: Find the LONGEST matching keyword from the FALLBACK KB.
-    // This ensures specific matches (e.g., "black soil") beat generic ones (e.g., "soil").
-    let bestMatch = null;
-    let maxLen = 0;
+    // ── Find longest-matching keyword in extended knowledge base ──────────
+    let extBestMatch = null;
+    let extMaxLen = 0;
 
     for (const key in responses) {
-      if (lowerQuestion.includes(key)) {
-        if (key.length > maxLen) {
-          maxLen = key.length;
-          bestMatch = responses[key];
-        }
+      if (lowerQuestion.includes(key) && key.length > extMaxLen) {
+        extMaxLen = key.length;
+        extBestMatch = responses[key];
       }
     }
 
-    // Word-level fuzzy match if no exact key match found
-    if (!bestMatch) {
+    // ── Word-level fuzzy match if still no match ───────────────────────────
+    if (!extBestMatch) {
       const words = lowerQuestion.split(/\s+/).filter(w => w.length > 3);
       outerLoop: for (const word of words) {
         for (const key in responses) {
           if (key.startsWith(word) || key.includes(word)) {
-            bestMatch = responses[key];
+            extBestMatch = responses[key];
             break outerLoop;
           }
         }
       }
     }
 
-    const advice = bestMatch ||
-      `Thank you for your question! 🌱 Here is expert farming guidance:
+    // ── Conversational phrase matching ─────────────────────────────────────
+    const conversationalMap = [
+      { phrases: ['hello', 'hi ', 'hey ', 'namaste', 'good morning', 'good evening'], answer: `Namaste! 🌾 Great to have you here. I'm your FarmWise agricultural advisor — ask me anything about crops, soil health, fertilizers, pest control, irrigation, or government schemes. What's on your mind today?` },
+      { phrases: ['thank', 'thanks', 'shukriya', 'dhanyawad'], answer: `You're most welcome! 🌱 Feel free to ask anytime — whether it's about soil testing, crop disease, fertilizer doses, or government subsidies. Happy farming! 🚜` },
+      { phrases: ['how are you', 'how r u', 'kaisa hai'], answer: `I'm always ready and fully charged to help you with your farm! 💪🌿 What farming challenge can I help you solve today?` },
+      { phrases: ['best crop', 'which crop', 'kon si fasal', 'kharib crop', 'kharif crop'], answer: `Great question! Kharif crops (June–July): Rice, Maize, Cotton, Soybean, Groundnut, Jowar, Bajra — these need warm temperatures and rain. Rabi crops (Oct–Nov): Wheat, Chickpea, Mustard, Lentil, Barley — cooler climates. Zaid/summer (Feb–March): Watermelon, Muskmelon, Cucumber, Moong. For best results: choose based on your **soil type**, **irrigation availability**, and **local market demand**. Want specific advice for your region?` },
+      { phrases: ['improve soil', 'soil fertility', 'soil health', 'mitti sudharna'], answer: `Improving soil health naturally is a long-term investment that pays huge returns. Here's a practical approach:\n\n**1. Add organic matter** — Apply FYM 10–15 t/ha or Vermicompost 2–3 t/ha every season. This is the single most important step.\n\n**2. Stop burning crop residue** — Return all straw/stalks to the field as mulch. Each ton of paddy straw contains 5 kg N + 2 kg P + 25 kg K.\n\n**3. Grow green manure** — Dhaincha or Sunhemp before Kharif adds 50–60 kg N/ha at near-zero cost.\n\n**4. Get a Soil Health Card** — Free from your local agriculture office. Test N, P, K, pH, Zn, Fe and follow crop-specific recommendations.\n\n**5. Balanced NPK** — Never apply only Nitrogen. Add Phosphorus and Potassium to maintain soil balance.` },
+      { phrases: ['water saving', 'save water', 'water management', 'irrigation', 'drip'], answer: `Water is the most limited resource in Indian farming. Here's how to cut consumption by 30–50%:\n\n💧 **Drip irrigation** — Delivers water directly to roots. Saves 40–50% water, enables fertigation, reduces weeds. PMKSY gives 55% subsidy for small farmers.\n\n💦 **Sprinkler system** — Better for uneven land, field crops, and nurseries. Saves 30–35% vs flood. Also subsidised under PMKSY.\n\n🌾 **Mulching** — Apply 5–10 cm straw or black plastic film between rows. Cuts soil water loss by 40% and saves 2–3 irrigations per season.\n\n📅 **Schedule correctly** — Irrigate early morning (6–8 AM) to reduce evaporation. Use the feel method: squeeze soil — if it crumbles instead of forming a ball, it's time to irrigate.` },
+      { phrases: ['organic', 'natural farming', 'zero budget', 'chemical free', 'jaivik'], answer: `Organic farming is gaining momentum in India — and for good reason. Here's how to start:\n\n**Inputs to replace chemicals:**\n• Compost/Vermicompost — replaces synthetic fertilizers\n• Jeevamrut (cow dung + urine fermented) — replaces chemical soil treatments\n• Neem oil/NSKE — replaces most synthetic pesticides\n• Trichoderma + Rhizobium — replaces fungicides and part of nitrogen requirement\n\n**Certification:** PGS-India (Participatory Guarantee System) is cheaper and faster than NPOP. Group certification available through FPOs.\n\n**Premium prices:** Organic produce fetches 25–40% more at direct markets, FPO selling, or Agri exports. 3-year transition period is required, but state schemes often provide support during transition.` },
+      { phrases: ['yield increase', 'production increase', 'fasal badhana', 'more production', 'low yield'], answer: `Yield gaps in Indian farms are often 40–60% below potential. Here's how to close that gap:\n\n**1. Soil testing first** — Balanced fertility based on soil test boosts yield 10–15% without any extra cost.\n\n**2. Use certified seed** — Improved/hybrid varieties yield 20–30% more than farm-saved seed. Treat with Thiram + Trichoderma before sowing.\n\n**3. Timely sowing** — Each week of delay in sowing reduces wheat yield by 1–1.5 quintals/ha. Follow recommended sowing windows for your variety.\n\n**4. Critical irrigations** — Never miss irrigation at critical stages (CRI for wheat, panicle initiation for rice, flowering for legumes).\n\n**5. IPM pest management** — Uncontrolled pests cause 15–25% yield loss. Monitor weekly and act at threshold levels.\n\n**6. Post-harvest quality** — Dry to safe moisture, store properly — reduces post-harvest loss from 20% to under 5%.` },
+    ];
 
-**Soil Health First:** Get a free Soil Health Card soil test (N, P, K, pH, EC, Zn, Fe, etc.). Balanced fertilization saves 20-30% cost and boosts yield 10-15%.
+    if (!extBestMatch) {
+      for (const entry of conversationalMap) {
+        if (entry.phrases.some(p => lowerQuestion.includes(p))) {
+          extBestMatch = entry.answer;
+          break;
+        }
+      }
+    }
 
-**Crop Selection:** Kharif crops (rice, cotton, maize, soybean) — sow June-July. Rabi crops (wheat, chickpea, mustard) — sow October-November. Zaid crops (watermelon, moong) — sow Feb-March.
-
-**Water Management:** Drip or sprinkler irrigation saves 30-50% water. PMKSY scheme gives 45-55% subsidy on micro-irrigation.
-
-**Pest Control (IPM):** Resistant varieties + crop rotation → mechanical traps → Neem oil/bio-agents (Trichoderma, Bt) → chemicals only at threshold level.
-
-**Government Support:** PM-KISAN gives ₹6,000/year direct income | PMFBY crop insurance at 1.5-2% premium | KCC loans at 4% interest | Free Soil Health Card every 2 years.
-
-For specific advice, ask about a crop (e.g., "How to grow wheat?"), a pest/disease (e.g., "Aphid control in cotton"), soil issue (e.g., "Acidic soil treatment"), or scheme (e.g., "Kisan Credit Card eligibility"). 🌾`;
+    const advice = extBestMatch ||
+      `That's a good farming question! Let me share some expert guidance:\n\n**Start with soil health** — A free Soil Health Card test (available at your Block Agriculture Office) checks 12 parameters: N, P, K, pH, Zn, Fe, and more. Balanced fertilization based on test results saves 20–30% cost and boosts yield 10–15%.\n\n**Choose the right crop for your season:**\n• Kharif (June–July): Rice, Maize, Cotton, Soybean, Groundnut\n• Rabi (Oct–Nov): Wheat, Chickpea, Mustard, Barley, Peas\n• Zaid (Feb–March): Watermelon, Cucumber, Moong, Fodder\n\n**Water smartly** — Drip or sprinkler irrigation saves 30–50% water. PMKSY gives 55% subsidy for small/marginal farmers.\n\n**Control pests the smart way (IPM)** — Start with resistant varieties, crop rotation, and pheromone traps. Use chemicals only when pest count crosses the Economic Threshold Level.\n\n**Government schemes available to you:**\n• PM-KISAN: ₹6,000/year direct income | PMFBY: Crop insurance at just 1.5–2% premium\n• KCC: Crop loans at 4% interest | Free Soil Health Card every 2 years\n\nTry asking something more specific like: *"How to control leaf curl in tomato"*, *"What fertilizer for wheat at tillering stage"*, or *"PM Kisan eligibility criteria"*. 🌾`;
 
     // Save to chat history
     await saveChatMessage(req.user._id, sessionId, question, advice);
@@ -355,8 +339,7 @@ For specific advice, ask about a crop (e.g., "How to grow wheat?"), a pest/disea
       question,
       answer: advice,
       timestamp: new Date(),
-      userId: req.user._id,
-      source: 'Local DB'
+      userId: req.user._id
     });
 
   } catch (error) {

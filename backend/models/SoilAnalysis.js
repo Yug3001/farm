@@ -16,7 +16,7 @@ const soilAnalysisSchema = new mongoose.Schema({
         color: String,
         moisture: String,
         organicMatter: String,
-        pH: {
+        ph: {
             value: String,
             category: String
         },
