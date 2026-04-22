@@ -22,19 +22,19 @@ const saveTasks = (tasks) => {
 
 // ─── Notification Bell (exported so App.jsx can use it in the navbar) ─────────
 export const OverdueBell = () => {
-    const [overdueCount, setOverdueCount]   = useState(0);
-    const [todayCount,   setTodayCount]     = useState(0);
-    const [overdueTasks, setOverdueTasks]   = useState([]);
-    const [todayTasks,   setTodayTasks]     = useState([]);
-    const [showPopup,    setShowPopup]      = useState(false);
+    const [overdueCount, setOverdueCount] = useState(0);
+    const [todayCount, setTodayCount] = useState(0);
+    const [overdueTasks, setOverdueTasks] = useState([]);
+    const [todayTasks, setTodayTasks] = useState([]);
+    const [showPopup, setShowPopup] = useState(false);
     const popupRef = useRef(null);
 
     const refresh = () => {
         const tasks = loadTasks();
-        const now   = new Date();
+        const now = new Date();
 
         const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
-        const todayEnd   = new Date(now); todayEnd.setHours(23, 59, 59, 999);
+        const todayEnd = new Date(now); todayEnd.setHours(23, 59, 59, 999);
 
         const overdue = tasks.filter(t => {
             if (t.completed || t.archived) return false;
@@ -74,9 +74,9 @@ export const OverdueBell = () => {
         return () => document.removeEventListener('mousedown', handler);
     }, []);
 
-    const totalBadge   = overdueCount + todayCount;
-    const badgeColor   = overdueCount > 0 ? '#e53935' : todayCount > 0 ? '#f59e0b' : null;
-    const isRinging    = overdueCount > 0;
+    const totalBadge = overdueCount + todayCount;
+    const badgeColor = overdueCount > 0 ? '#e53935' : todayCount > 0 ? '#f59e0b' : null;
+    const isRinging = overdueCount > 0;
 
     // Navigate to reminders page
     const goToReminders = () => {
@@ -92,8 +92,8 @@ export const OverdueBell = () => {
                 onClick={() => setShowPopup(p => !p)}
                 title={
                     overdueCount > 0 ? `${overdueCount} overdue task${overdueCount > 1 ? 's' : ''}` :
-                    todayCount   > 0 ? `${todayCount} task${todayCount > 1 ? 's' : ''} due today` :
-                    'No pending tasks — click to view schedule'
+                        todayCount > 0 ? `${todayCount} task${todayCount > 1 ? 's' : ''} due today` :
+                            'No pending tasks — click to view schedule'
                 }
                 style={{
                     cursor: 'pointer', fontSize: '22px', position: 'relative',
@@ -131,16 +131,16 @@ export const OverdueBell = () => {
                     {/* Header */}
                     <div style={{
                         background: overdueCount > 0 ? 'linear-gradient(135deg,#c62828,#e53935)' :
-                                    todayCount   > 0 ? 'linear-gradient(135deg,#e65100,#f59e0b)' :
-                                    'linear-gradient(135deg,#1b5e20,#22c55e)',
+                            todayCount > 0 ? 'linear-gradient(135deg,#e65100,#f59e0b)' :
+                                'linear-gradient(135deg,#1b5e20,#22c55e)',
                         color: 'white', padding: '12px 16px',
                         fontWeight: '700', fontSize: '13px',
                         display: 'flex', alignItems: 'center', gap: '8px',
                     }}>
                         🔔
                         {overdueCount > 0 ? `${overdueCount} Overdue Task${overdueCount > 1 ? 's' : ''}` :
-                         todayCount   > 0 ? `${todayCount} Due Today` :
-                         'All Caught Up!'}
+                            todayCount > 0 ? `${todayCount} Due Today` :
+                                'All Caught Up!'}
                     </div>
 
                     <div style={{ padding: '12px 16px', maxHeight: '240px', overflowY: 'auto' }}>
