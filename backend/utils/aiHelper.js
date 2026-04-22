@@ -1,21 +1,18 @@
 /**
  * AI Helper Utilities for FarmWise
  *
- * ⚠️  Offline Mode — Gemini API integration is disabled.
- * All AI entry-points immediately throw so callers fall through
- * to their rich local knowledge-base / simulation fallbacks.
- *
- * To re-enable Gemini: set GEMINI_API_KEY in .env and restore
- * the original implementation from git history.
+ * Legacy stub — routes now call groqClient.js directly.
+ * Kept for backward-compat so any old import doesn't break.
  */
 
 /**
  * Stub — always rejects so routes use their local fallbacks.
+ * Modern routes should use groqChat / groqVision from groqClient.js.
  * @returns {Promise<never>}
  */
 async function generateWithRetry() {
-  console.log('[AI] 🔕 Offline mode — using local knowledge base / simulation.');
-  throw new Error('AI offline — using local fallback.');
+  console.log('[AI] Using Groq AI or local fallback.');
+  throw new Error('Use groqClient.js directly — this stub always rejects.');
 }
 
 /**

@@ -7,7 +7,7 @@ let _client = null;
  */
 function getGroqClient() {
   const key = process.env.GROQ_API_KEY;
-  if (!key || key === 'YOUR_GROQ_API_KEY_HERE' || key.trim() === '') {
+  if (!key || key.trim() === '') {
     return null;
   }
   if (!_client) {
@@ -37,10 +37,10 @@ async function groqChat(systemPrompt, userMessage, model = 'llama-3.3-70b-versat
       model,
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user',   content: userMessage   },
+        { role: 'user', content: userMessage },
       ],
       temperature: 0.65,
-      max_tokens:  1024,
+      max_tokens: 1024,
     });
     return completion.choices[0]?.message?.content?.trim() || null;
   } catch (err) {
@@ -66,13 +66,13 @@ async function groqVision(systemPrompt, userText, imageDataUrl, model = 'meta-ll
         {
           role: 'user',
           content: [
-            { type: 'text',      text: userText },
+            { type: 'text', text: userText },
             { type: 'image_url', image_url: { url: imageDataUrl } },
           ],
         },
       ],
       temperature: 0.3,
-      max_tokens:  1500,
+      max_tokens: 1500,
     });
     return completion.choices[0]?.message?.content?.trim() || null;
   } catch (err) {
