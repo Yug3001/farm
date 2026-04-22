@@ -20,31 +20,43 @@ const saveTasks = (tasks) => {
     }
 };
 
-// ─── Notification Bell (exported so App.jsx can use it) ──────────────────────
+// ─── Notification Bell (exported so App.jsx can use it in the navbar) ─────────
 export const OverdueBell = () => {
-    const [overdueCount, setOverdueCount] = useState(0);
-    const [showPopup, setShowPopup] = useState(false);
-    const [overdueTitles, setOverdueTitles] = useState([]);
+    const [overdueCount, setOverdueCount]   = useState(0);
+    const [todayCount,   setTodayCount]     = useState(0);
+    const [overdueTasks, setOverdueTasks]   = useState([]);
+    const [todayTasks,   setTodayTasks]     = useState([]);
+    const [showPopup,    setShowPopup]      = useState(false);
     const popupRef = useRef(null);
 
     const refresh = () => {
         const tasks = loadTasks();
-        const now = new Date();
-        now.setHours(0, 0, 0, 0);
+        const now   = new Date();
+
+        const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
+        const todayEnd   = new Date(now); todayEnd.setHours(23, 59, 59, 999);
+
         const overdue = tasks.filter(t => {
-            const td = new Date(t.date);
-            td.setHours(0, 0, 0, 0);
-            return !t.completed && !t.archived && td < now;
+            if (t.completed || t.archived) return false;
+            const d = new Date(t.date); d.setHours(23, 59, 59, 999);
+            return d < now && new Date(t.date) < todayStart;
         });
+
+        const today = tasks.filter(t => {
+            if (t.completed || t.archived) return false;
+            const d = new Date(t.date); d.setHours(0, 0, 0, 0);
+            return d >= todayStart && d <= todayEnd;
+        });
+
         setOverdueCount(overdue.length);
-        setOverdueTitles(overdue.map(t => t.title));
+        setTodayCount(today.length);
+        setOverdueTasks(overdue.map(t => ({ title: t.title, time: t.time || '' })));
+        setTodayTasks(today.map(t => ({ title: t.title, time: t.time || '' })));
     };
 
     useEffect(() => {
         refresh();
-        // Refresh every 60 seconds
-        const interval = setInterval(refresh, 60_000);
-        // Also listen for storage changes from Reminders saves
+        const interval = setInterval(refresh, 30_000);
         window.addEventListener('farmwise_tasks_updated', refresh);
         return () => {
             clearInterval(interval);
@@ -55,77 +67,146 @@ export const OverdueBell = () => {
     // Close popup when clicking outside
     useEffect(() => {
         const handler = (e) => {
-            if (popupRef.current && !popupRef.current.contains(e.target)) {
+            if (popupRef.current && !popupRef.current.contains(e.target))
                 setShowPopup(false);
-            }
         };
         document.addEventListener('mousedown', handler);
         return () => document.removeEventListener('mousedown', handler);
     }, []);
 
-    if (overdueCount === 0) return null;
+    const totalBadge   = overdueCount + todayCount;
+    const badgeColor   = overdueCount > 0 ? '#e53935' : todayCount > 0 ? '#f59e0b' : null;
+    const isRinging    = overdueCount > 0;
+
+    // Navigate to reminders page
+    const goToReminders = () => {
+        window.location.href = '/dashboard/reminders';
+        setShowPopup(false);
+    };
 
     return (
         <div ref={popupRef} style={{ position: 'relative' }}>
+            {/* ── Bell button ── */}
             <div
                 id="overdue-bell-btn"
                 onClick={() => setShowPopup(p => !p)}
-                title={`${overdueCount} overdue task${overdueCount > 1 ? 's' : ''}! Click to see`}
+                title={
+                    overdueCount > 0 ? `${overdueCount} overdue task${overdueCount > 1 ? 's' : ''}` :
+                    todayCount   > 0 ? `${todayCount} task${todayCount > 1 ? 's' : ''} due today` :
+                    'No pending tasks — click to view schedule'
+                }
                 style={{
-                    cursor: 'pointer',
-                    fontSize: '22px',
-                    position: 'relative',
-                    display: 'flex',
-                    alignItems: 'center',
-                    animation: 'bellRing 1.2s ease infinite',
-                    userSelect: 'none'
+                    cursor: 'pointer', fontSize: '22px', position: 'relative',
+                    display: 'flex', alignItems: 'center',
+                    animation: isRinging ? 'bellRing 1.2s ease infinite' : 'none',
+                    userSelect: 'none', transition: 'opacity 0.2s',
+                    opacity: totalBadge > 0 ? 1 : 0.6,
                 }}
             >
                 🔔
-                <span style={{
-                    position: 'absolute',
-                    top: '-6px',
-                    right: '-8px',
-                    background: '#e53935',
-                    color: 'white',
-                    borderRadius: '50%',
-                    width: '18px',
-                    height: '18px',
-                    fontSize: '11px',
-                    fontWeight: '700',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: '0 0 0 2px white'
-                }}>
-                    {overdueCount > 9 ? '9+' : overdueCount}
-                </span>
+                {badgeColor && (
+                    <span style={{
+                        position: 'absolute', top: '-6px', right: '-8px',
+                        background: badgeColor, color: 'white',
+                        borderRadius: '50%', width: '18px', height: '18px',
+                        fontSize: '11px', fontWeight: '700',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        boxShadow: '0 0 0 2px white',
+                        transition: 'background 0.3s',
+                    }}>
+                        {totalBadge > 9 ? '9+' : totalBadge}
+                    </span>
+                )}
             </div>
 
+            {/* ── Popup ── */}
             {showPopup && (
                 <div style={{
-                    position: 'absolute',
-                    top: '38px',
-                    right: 0,
-                    background: 'white',
-                    border: '1px solid #ffcdd2',
-                    borderRadius: '12px',
-                    boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
-                    padding: '14px 16px',
-                    minWidth: '240px',
-                    zIndex: 9999,
-                    color: '#333'
+                    position: 'absolute', top: '42px', right: 0,
+                    background: 'white', border: '1px solid #e0e0e0',
+                    borderRadius: '14px', boxShadow: '0 12px 40px rgba(0,0,0,0.18)',
+                    padding: '0', minWidth: '260px', zIndex: 9999, overflow: 'hidden',
+                    color: '#333',
                 }}>
-                    <div style={{ fontWeight: '700', color: '#c62828', marginBottom: '10px', fontSize: '14px' }}>
-                        ⚠️ {overdueCount} Overdue Task{overdueCount > 1 ? 's' : ''}
+                    {/* Header */}
+                    <div style={{
+                        background: overdueCount > 0 ? 'linear-gradient(135deg,#c62828,#e53935)' :
+                                    todayCount   > 0 ? 'linear-gradient(135deg,#e65100,#f59e0b)' :
+                                    'linear-gradient(135deg,#1b5e20,#22c55e)',
+                        color: 'white', padding: '12px 16px',
+                        fontWeight: '700', fontSize: '13px',
+                        display: 'flex', alignItems: 'center', gap: '8px',
+                    }}>
+                        🔔
+                        {overdueCount > 0 ? `${overdueCount} Overdue Task${overdueCount > 1 ? 's' : ''}` :
+                         todayCount   > 0 ? `${todayCount} Due Today` :
+                         'All Caught Up!'}
                     </div>
-                    <ul style={{ margin: 0, paddingLeft: '18px', fontSize: '13px', color: '#555' }}>
-                        {overdueTitles.map((t, i) => (
-                            <li key={i} style={{ marginBottom: '4px' }}>{t}</li>
-                        ))}
-                    </ul>
-                    <div style={{ marginTop: '10px', fontSize: '12px', color: '#888', borderTop: '1px solid #eee', paddingTop: '8px' }}>
-                        Go to <b>Daily Schedule</b> to manage tasks.
+
+                    <div style={{ padding: '12px 16px', maxHeight: '240px', overflowY: 'auto' }}>
+                        {/* Overdue tasks */}
+                        {overdueTasks.length > 0 && (
+                            <>
+                                <div style={{ fontSize: '11px', fontWeight: '700', color: '#c62828', marginBottom: '6px', letterSpacing: '0.5px' }}>
+                                    ⚠️ OVERDUE
+                                </div>
+                                {overdueTasks.map((t, i) => (
+                                    <div key={i} style={{
+                                        display: 'flex', alignItems: 'center', gap: '8px',
+                                        padding: '6px 0', borderBottom: '1px solid #ffebee',
+                                        fontSize: '13px', color: '#b71c1c'
+                                    }}>
+                                        <span style={{ fontSize: '16px' }}>🚨</span>
+                                        <span style={{ flex: 1 }}>{t.title}</span>
+                                        {t.time && <span style={{ fontSize: '11px', color: '#999' }}>{t.time}</span>}
+                                    </div>
+                                ))}
+                            </>
+                        )}
+
+                        {/* Today's tasks */}
+                        {todayTasks.length > 0 && (
+                            <>
+                                <div style={{ fontSize: '11px', fontWeight: '700', color: '#e65100', marginBottom: '6px', marginTop: overdueTasks.length ? '10px' : 0, letterSpacing: '0.5px' }}>
+                                    📅 DUE TODAY
+                                </div>
+                                {todayTasks.map((t, i) => (
+                                    <div key={i} style={{
+                                        display: 'flex', alignItems: 'center', gap: '8px',
+                                        padding: '6px 0', borderBottom: '1px solid #fff8e1',
+                                        fontSize: '13px', color: '#555'
+                                    }}>
+                                        <span style={{ fontSize: '16px' }}>📌</span>
+                                        <span style={{ flex: 1 }}>{t.title}</span>
+                                        {t.time && <span style={{ fontSize: '11px', color: '#999' }}>{t.time}</span>}
+                                    </div>
+                                ))}
+                            </>
+                        )}
+
+                        {/* Empty state */}
+                        {overdueCount === 0 && todayCount === 0 && (
+                            <div style={{ textAlign: 'center', padding: '12px 0', color: '#888', fontSize: '13px' }}>
+                                <div style={{ fontSize: '28px', marginBottom: '6px' }}>✅</div>
+                                No pending or overdue tasks.<br />
+                                <span style={{ fontSize: '12px' }}>Great work, farmer!</span>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Footer link */}
+                    <div
+                        onClick={goToReminders}
+                        style={{
+                            padding: '10px 16px', background: '#f5f5f5',
+                            borderTop: '1px solid #eee', fontSize: '12px',
+                            color: '#1b5e20', fontWeight: '700', cursor: 'pointer',
+                            textAlign: 'center', transition: 'background 0.2s',
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.background = '#e8f5e9'}
+                        onMouseLeave={e => e.currentTarget.style.background = '#f5f5f5'}
+                    >
+                        📋 Open Daily Schedule →
                     </div>
                 </div>
             )}

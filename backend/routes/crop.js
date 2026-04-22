@@ -3,15 +3,56 @@ const router = express.Router();
 const CropAnalysis = require('../models/CropAnalysis');
 const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
+const { groqVision, parseGroqJSON, isGroqAvailable } = require('../utils/groqClient');
+
+const CROP_SYSTEM_PROMPT = `You are an expert agricultural scientist. Analyze the crop image and return ONLY a valid JSON object with EXACTLY this structure (no extra text, no markdown):
+{
+  "cropName": "name of the crop",
+  "scientificName": "scientific name",
+  "growthStage": "detailed growth stage with days",
+  "health": { "status": "Healthy/Diseased/Stressed/etc", "score": 75 },
+  "diseases": [{ "name": "disease name", "severity": "Low/Medium/High", "symptoms": "detailed symptoms", "treatment": "detailed treatment steps" }],
+  "pests": [{ "name": "pest name", "severity": "Low/Medium/High", "treatment": "detailed treatment" }],
+  "recommendations": ["action 1", "action 2", "action 3"],
+  "careInstructions": {
+    "watering": "detailed watering instructions",
+    "fertilization": "detailed fertilization plan",
+    "pruning": "pruning instructions",
+    "pestControl": "pest control schedule"
+  },
+  "harvestPrediction": { "estimatedDays": 30, "expectedYield": "expected yield details" }
+}
+If no diseases or pests are detected, return empty arrays []. Return ONLY the JSON, nothing else.`;
 
 // Analyze crop disease
 router.post('/analyze', authMiddleware, async (req, res) => {
   try {
     const { imageData, location, notes } = req.body;
+    let analysisData = null;
 
-    // Derive a stable seed from the image so the same photo gives the same result
-    const seed = imageData ? imageSeed(imageData) : Math.random();
-    const analysisData = getSimulatedCropAnalysis(seed);
+    // ── 1. Try Groq Vision AI ────────────────────────────────────────────────
+    if (imageData && isGroqAvailable()) {
+      try {
+        const userText = `Analyze this crop image${location ? ` from ${location}` : ''}${notes ? `. Notes: ${notes}` : ''}. Provide a complete disease, pest and health diagnosis.`;
+        const groqResponse = await groqVision(CROP_SYSTEM_PROMPT, userText, imageData);
+        if (groqResponse) {
+          const parsed = parseGroqJSON(groqResponse);
+          if (parsed && parsed.cropName && parsed.health) {
+            analysisData = parsed;
+            console.log('[Crop] ✅ Groq vision analysis successful');
+          }
+        }
+      } catch (err) {
+        console.warn('[Crop] ⚠️ Groq vision failed, using simulation:', err.message);
+      }
+    }
+
+    // ── 2. Fallback: deterministic simulation ─────────────────────────────────
+    if (!analysisData) {
+      const seed = imageData ? imageSeed(imageData) : Math.random();
+      analysisData = getSimulatedCropAnalysis(seed);
+      console.log('[Crop] Using simulation fallback');
+    }
 
     // Save to database
     const cropAnalysis = new CropAnalysis({
@@ -24,7 +65,7 @@ router.post('/analyze', authMiddleware, async (req, res) => {
 
     await cropAnalysis.save();
 
-    // Track usage in MongoDB (fire-and-forget)
+    // Track usage (fire-and-forget)
     User.findById(req.user._id)
       .then(u => u?.trackUsage('crop'))
       .catch(err => console.warn('[DB] trackUsage failed:', err.message));

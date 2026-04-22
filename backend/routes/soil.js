@@ -3,15 +3,56 @@ const router = express.Router();
 const SoilAnalysis = require('../models/SoilAnalysis');
 const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
+const { groqVision, parseGroqJSON, isGroqAvailable } = require('../utils/groqClient');
+
+const SOIL_SYSTEM_PROMPT = `You are an expert soil scientist. Analyze the soil image and return ONLY a valid JSON object with EXACTLY this structure (no extra text, no markdown):
+{
+  "soilType": "specific soil type name",
+  "texture": "detailed texture description",
+  "color": "color with Munsell notation if possible",
+  "moisture": "moisture percentage and description",
+  "organicMatter": "organic matter percentage and quality",
+  "ph": { "value": "6.5", "category": "Slightly Acidic" },
+  "nutrients": {
+    "nitrogen": "level and ppm with status",
+    "phosphorus": "level and ppm with status",
+    "potassium": "level and ppm with status"
+  },
+  "recommendations": ["specific action 1", "specific action 2", "specific action 3"],
+  "suitableCrops": ["crop1", "crop2", "crop3", "crop4", "crop5"],
+  "improvements": ["improvement 1", "improvement 2", "improvement 3"]
+}
+Return ONLY the JSON, nothing else.`;
 
 // Analyze soil sample
 router.post('/analyze', authMiddleware, async (req, res) => {
   try {
     const { imageData, location, notes } = req.body;
+    let analysisData = null;
 
-    // Derive a numeric seed from image data so the same image always gets the same scenario
-    const seed = imageData ? imageSeed(imageData) : Math.random();
-    const analysisData = getSimulatedAnalysis(seed, location, notes);
+    // ── 1. Try Groq Vision AI ────────────────────────────────────────────────
+    if (imageData && isGroqAvailable()) {
+      try {
+        const userText = `Analyze this soil sample image${location ? ` from ${location}` : ''}${notes ? `. Notes: ${notes}` : ''}. Provide detailed soil type, nutrient status, pH estimate, and crop recommendations.`;
+        const groqResponse = await groqVision(SOIL_SYSTEM_PROMPT, userText, imageData);
+        if (groqResponse) {
+          const parsed = parseGroqJSON(groqResponse);
+          if (parsed && parsed.soilType && parsed.nutrients) {
+            analysisData = parsed;
+            console.log('[Soil] ✅ Groq vision analysis successful');
+          }
+        }
+      } catch (err) {
+        console.warn('[Soil] ⚠️ Groq vision failed, using simulation:', err.message);
+      }
+    }
+
+    // ── 2. Fallback: deterministic simulation ─────────────────────────────────
+    if (!analysisData) {
+      const seed = imageData ? imageSeed(imageData) : Math.random();
+      analysisData = getSimulatedAnalysis(seed, location, notes);
+      console.log('[Soil] Using simulation fallback');
+    }
 
     // Save to database
     const soilAnalysis = new SoilAnalysis({
@@ -24,7 +65,7 @@ router.post('/analyze', authMiddleware, async (req, res) => {
 
     await soilAnalysis.save();
 
-    // Track usage in MongoDB (fire-and-forget)
+    // Track usage (fire-and-forget)
     User.findById(req.user._id)
       .then(u => u?.trackUsage('soil'))
       .catch(err => console.warn('[DB] trackUsage failed:', err.message));

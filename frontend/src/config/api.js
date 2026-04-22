@@ -1,27 +1,29 @@
 /**
  * Centralized API base URL configuration.
- *
- * Works from ANY device on the same network (laptop, phone, tablet):
- *  - When opened on the laptop itself → uses localhost
- *  - When opened from a phone/tablet on the same WiFi → uses the laptop's LAN IP
- *
- * Set REACT_APP_API_URL (CRA) or VITE_API_URL (Vite) in .env to override.
+ * Priority:
+ *  1. VITE_API_BASE_URL env var  (production / Render)
+ *  2. VITE_API_URL env var       (legacy alias)
+ *  3. http://<same-hostname>:5000 for localhost / LAN dev
+ *  4. Same origin                for unknown cloud hosts
  */
-
 const getApiBaseUrl = () => {
-  // 1. Explicit env override (production deployments)
-  if (
-    typeof import.meta !== 'undefined' &&
-    import.meta.env &&
-    import.meta.env.VITE_API_URL
-  ) {
-    return import.meta.env.VITE_API_URL;
-  }
+  const env = typeof import.meta !== 'undefined' ? import.meta.env : {};
 
-  // 2. Dynamic: use the same hostname the browser connected to
-  //    Works for localhost AND for 192.168.x.x (phone access over WiFi)
+  if (env?.VITE_API_BASE_URL) return env.VITE_API_BASE_URL;
+  if (env?.VITE_API_URL)      return env.VITE_API_URL;
+
   const hostname = window.location.hostname;
-  return `http://${hostname}:5000`;
+  const isLocal =
+    hostname === 'localhost' ||
+    hostname.startsWith('127.') ||
+    hostname.startsWith('192.168.') ||
+    hostname.startsWith('10.');
+
+  // Local dev — backend runs on :5000
+  if (isLocal) return `http://${hostname}:5000`;
+
+  // Cloud — assume same origin serves both frontend & backend
+  return window.location.origin;
 };
 
 export const API_BASE_URL = getApiBaseUrl();

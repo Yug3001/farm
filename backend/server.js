@@ -34,28 +34,30 @@ app.use(extraHeaders);
 // ─── 3. CORS ─────────────────────────────────────────────────────────────────
 // Allow localhost (dev), Vite dev server, AND any device on the same LAN
 // (phones/tablets connecting via the laptop's WiFi IP e.g. 192.168.x.x)
-const isLanOrigin = (origin) => {
-  if (!origin) return true; // server-to-server, curl, same-origin etc.
+// Allowed production origins (cloud deployments)
+const ALLOWED_ORIGINS = new Set(
+  [process.env.FRONTEND_URL, 'https://farm-0xtp.onrender.com']
+    .filter(Boolean)
+);
+
+const isAllowedOrigin = (origin) => {
+  if (!origin) return true; // server-to-server, curl, same-origin
+  if (ALLOWED_ORIGINS.has(origin)) return true;
+  // Allow any *.onrender.com subdomain (own deployments)
+  if (origin.endsWith('.onrender.com')) return true;
   try {
-    const url = new URL(origin);
-    const hostname = url.hostname;
-    // localhost / 127.x
+    const hostname = new URL(origin).hostname;
     if (hostname === 'localhost' || hostname.startsWith('127.')) return true;
-    // Class A private: 10.x.x.x
     if (hostname.startsWith('10.')) return true;
-    // Class B private: 172.16.x.x – 172.31.x.x
     if (/^172\.(1[6-9]|2[0-9]|3[01])\./.test(hostname)) return true;
-    // Class C private: 192.168.x.x
     if (hostname.startsWith('192.168.')) return true;
-    return false;
-  } catch {
-    return false;
-  }
+  } catch { /* ignore malformed */ }
+  return false;
 };
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (isLanOrigin(origin)) {
+    if (isAllowedOrigin(origin)) {
       callback(null, true);
     } else {
       console.warn(`[SECURITY] CORS blocked request from origin: ${origin}`);
